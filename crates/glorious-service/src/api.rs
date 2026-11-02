@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
+use axum::http::{header, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -45,6 +45,55 @@ pub struct DeviceList {
     pub devices: Vec<DeviceView>,
 }
 
+#[derive(rust_embed::RustEmbed)]
+#[folder = "../../frontend/dist"]
+pub struct EmbeddedAssets;
+
+/// Fallback handler serving embedded single-page application static files.
+async fn static_handler(uri: Uri) -> Response {
+    let raw_path = uri.path().trim_start_matches('/');
+    let path = if raw_path.is_empty() {
+        "index.html"
+    } else {
+        raw_path
+    };
+
+    if let Some(file) = EmbeddedAssets::get(path) {
+        let mime = mime_guess::from_path(path).first_or_octet_stream();
+        return (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, mime.as_ref())],
+            file.data,
+        )
+            .into_response();
+    }
+
+    if path == "api" || path.starts_with("api/") {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "not found" })),
+        )
+            .into_response();
+    }
+
+    // SPA fallback: return index.html for non-API client routes
+    if let Some(index) = EmbeddedAssets::get("index.html") {
+        let mime = mime_guess::from_path("index.html").first_or_octet_stream();
+        (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, mime.as_ref())],
+            index.data,
+        )
+            .into_response()
+    } else {
+        (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "index.html not found" })),
+        )
+            .into_response()
+    }
+}
+
 /// Build the HTTP/WebSocket router.
 pub fn router(state: AppState) -> Router {
     Router::new()
@@ -53,6 +102,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/device/{slug}", get(device_details))
         .route("/api/device/{slug}/apply", post(apply_device))
         .route("/ws", get(ws::ws_handler))
+        .fallback(static_handler)
         .layer(CorsLayer::permissive())
         .with_state(state)
 }
@@ -201,5 +251,107 @@ mod tests {
         for (err, expected) in cases {
             assert_eq!(ApiError::from(err).status, expected);
         }
+    }
+
+    fn test_router() -> Router {
+        let (db, _) = crate::devices::DeviceDatabase::load_default().expect("device db");
+        let manager = Arc::new(DeviceManager::new(db, std::time::Duration::from_millis(1)));
+        let state = AppState::new(manager);
+        router(state)
+    }
+
+    #[tokio::test]
+    async fn static_root_serves_index_html() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use http_body_util::BodyExt;
+        use tower::ServiceExt;
+
+        let app = test_router();
+        let response = app
+            .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE).unwrap(),
+            "text/html"
+        );
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body_str = std::str::from_utf8(&body).unwrap();
+        assert!(body_str.contains("<html") || body_str.contains("<!DOCTYPE html>"));
+    }
+
+    #[tokio::test]
+    async fn static_spa_fallback_serves_index_html() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        let app = test_router();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/devices/model-o-wireless")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE).unwrap(),
+            "text/html"
+        );
+    }
+
+    #[tokio::test]
+    async fn static_known_asset_served_with_correct_mime() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        let app = test_router();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/favicon.svg")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE).unwrap(),
+            "image/svg+xml"
+        );
+    }
+
+    #[tokio::test]
+    async fn unknown_api_route_returns_404_json() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use http_body_util::BodyExt;
+        use tower::ServiceExt;
+
+        let app = test_router();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/unknown_endpoint")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["error"], "not found");
     }
 }

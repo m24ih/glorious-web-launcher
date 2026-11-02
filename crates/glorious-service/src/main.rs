@@ -154,6 +154,18 @@ fn run_server(manager: Arc<DeviceManager>, options: Options) -> ExitCode {
             .unwrap_or_else(|_| options.bind.clone());
         info!(%address, "glorious-service listening (HTTP + WebSocket /ws)");
 
+        let host = if let Some(rest) = address.strip_prefix("0.0.0.0:") {
+            format!("127.0.0.1:{rest}")
+        } else {
+            address.clone()
+        };
+        let url = format!("http://{host}");
+        println!("Glorious Launcher web UI available at: {url}");
+
+        if options.open_browser {
+            open_browser(&url);
+        }
+
         match axum::serve(listener, app)
             .with_graceful_shutdown(shutdown_signal())
             .await
@@ -175,13 +187,45 @@ async fn shutdown_signal() {
     info!("shutdown signal received");
 }
 
-#[derive(Debug)]
+fn open_browser(url: &str) {
+    #[cfg(target_os = "linux")]
+    {
+        let _ = std::process::Command::new("xdg-open")
+            .arg(url)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open")
+            .arg(url)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn();
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let _ = std::process::Command::new("cmd")
+            .args(["/C", "start", url])
+            .spawn();
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    {
+        let _ = url;
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
 struct Options {
     bind: String,
     devices_json: Option<PathBuf>,
     probe: bool,
     delay: Duration,
     verbose: bool,
+    open_browser: bool,
 }
 
 impl Options {
@@ -192,11 +236,14 @@ impl Options {
             probe: false,
             delay: default_delay(),
             verbose: false,
+            open_browser: true,
         };
 
         while let Some(arg) = args.next() {
             match arg.as_str() {
                 "--probe" => options.probe = true,
+                "--open" => options.open_browser = true,
+                "--no-browser" => options.open_browser = false,
                 "--verbose" | "-v" => options.verbose = true,
                 "--bind" => {
                     options.bind = args
@@ -282,6 +329,8 @@ OPTIONS:
     --delay-ms <MS>          Delay between feature-report write/read (default 80,
                              env GLORIOUS_HID_DELAY_MS)
     --probe                  Read firmware/battery/settings once and print JSON
+    --open                   Open browser on startup (default)
+    --no-browser             Do not open browser on startup
     -v, --verbose            Debug logging
     -h, --help               Show this help
     -V, --version            Show version
@@ -303,4 +352,35 @@ EXAMPLE:
         version = env!("CARGO_PKG_VERSION"),
         bind = DEFAULT_BIND,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn options_default_has_open_browser_enabled() {
+        let opts = Options::parse(Vec::<String>::new().into_iter())
+            .expect("parse succeeds")
+            .expect("some options");
+        assert!(opts.open_browser);
+    }
+
+    #[test]
+    fn options_no_browser_flag_disables_browser() {
+        let args = vec!["--no-browser".to_string()];
+        let opts = Options::parse(args.into_iter())
+            .expect("parse succeeds")
+            .expect("some options");
+        assert!(!opts.open_browser);
+    }
+
+    #[test]
+    fn options_open_flag_enables_browser() {
+        let args = vec!["--no-browser".to_string(), "--open".to_string()];
+        let opts = Options::parse(args.into_iter())
+            .expect("parse succeeds")
+            .expect("some options");
+        assert!(opts.open_browser);
+    }
 }
