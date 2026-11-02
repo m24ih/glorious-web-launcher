@@ -635,6 +635,18 @@ impl SinowealthDevice {
             applied.push("dpi_stages".to_string());
         }
 
+        if let Some(colors) = &patch.dpi_colors {
+            let mut rgb_colors = Vec::with_capacity(colors.len());
+            for c in colors {
+                let rgb = crate::types::parse_hex_color(c).ok_or_else(|| {
+                    HidError::InvalidInput(format!("invalid hex color '{c}' in dpi_colors"))
+                })?;
+                rgb_colors.push(rgb);
+            }
+            self.set_dpi_colors(profile, &rgb_colors)?;
+            applied.push("dpi_colors".to_string());
+        }
+
         if let Some(stage) = patch.active_dpi_stage {
             self.set_active_dpi_stage(profile, stage)?;
             applied.push("active_dpi_stage".to_string());
@@ -727,6 +739,28 @@ impl SinowealthDevice {
             TARGET_MOUSE,
             CATEGORY_SENSOR,
             opcodes::DPI_VALUES_SET,
+            &payload,
+        )
+    }
+
+    pub fn set_dpi_colors(&self, profile: u8, colors: &[[u8; 3]]) -> Result<(), HidError> {
+        if colors.is_empty() || colors.len() > 8 {
+            return Err(HidError::InvalidInput(format!(
+                "dpi_colors must contain 1-8 entries, got {}",
+                colors.len()
+            )));
+        }
+
+        let mut payload = Vec::with_capacity(1 + colors.len() * 3);
+        payload.push(profile);
+        for color in colors {
+            payload.extend_from_slice(color);
+        }
+
+        self.write(
+            TARGET_MOUSE,
+            CATEGORY_RGB,
+            opcodes::RGB_DPI_COLOR_SET,
             &payload,
         )
     }
@@ -1031,5 +1065,25 @@ mod tests {
         assert_eq!(response.status().as_str(), "asleep");
         let err = parse_battery(&response).unwrap_err();
         assert!(matches!(err, HidError::Protocol { status: 0xA4, .. }));
+    }
+
+    #[test]
+    fn builds_dpi_color_request() {
+        let colors = [[255, 255, 0], [0, 0, 255], [255, 0, 0], [0, 255, 0]];
+        let mut payload = vec![1];
+        for c in &colors {
+            payload.extend_from_slice(c);
+        }
+        let request = build_request(TARGET_MOUSE, CATEGORY_RGB, opcodes::RGB_DPI_COLOR_SET, &payload);
+        assert_eq!(request[0], 0x00);
+        assert_eq!(request[3], TARGET_MOUSE);
+        assert_eq!(request[4], 13);
+        assert_eq!(request[5], CATEGORY_RGB);
+        assert_eq!(request[6], opcodes::RGB_DPI_COLOR_SET);
+        assert_eq!(request[7], 1); // profile
+        assert_eq!(&request[8..11], &[255, 255, 0]);
+        assert_eq!(&request[11..14], &[0, 0, 255]);
+        assert_eq!(&request[14..17], &[255, 0, 0]);
+        assert_eq!(&request[17..20], &[0, 255, 0]);
     }
 }

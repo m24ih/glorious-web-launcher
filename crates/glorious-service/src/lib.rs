@@ -17,12 +17,14 @@ pub mod api;
 pub mod devices;
 pub mod hid;
 pub mod manager;
+pub mod profiles;
 pub mod types;
 pub mod ws;
 
 pub use devices::{DeviceDatabase, DeviceEntry};
 pub use manager::DeviceManager;
+pub use profiles::ProfileStore;
 pub use types::{
     BatteryInfo, ConnectionView, DeviceStatusView, DeviceView, EffectName, EffectSpec,
-    FirmwareInfo, RgbPatch, SettingsPatch, SettingsView,
+    FirmwareInfo, LightingView, RgbPatch, SettingsPatch, SettingsView,
 };

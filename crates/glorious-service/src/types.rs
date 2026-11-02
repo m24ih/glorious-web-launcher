@@ -25,6 +25,16 @@ pub struct FirmwareInfo {
     pub display: String,
 }
 
+/// Lighting configuration for a profile.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LightingView {
+    pub effect: u8,
+    pub effect_name: String,
+    pub brightness: u8,
+    pub rate: u8,
+    pub color: [u8; 3],
+}
+
 /// Live settings read back from the mouse.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SettingsView {
@@ -35,12 +45,17 @@ pub struct SettingsView {
     /// stage count but return zeroed resolutions (Glorious CORE has the same
     /// workaround), in which case this stays empty instead of inventing data.
     pub dpi_stages: Vec<u32>,
+    /// DPI stage colors as hex strings (e.g. `["#FFFF00", "#0000FF", ...]`).
+    #[serde(default)]
+    pub dpi_colors: Vec<String>,
     /// 1-based stage index, as stored on the device.
     pub active_dpi_stage: u8,
     pub polling_rate: u32,
     pub debounce_ms: u8,
     pub lod: u8,
     pub sleep_seconds: Option<u32>,
+    #[serde(default)]
+    pub lighting: Option<LightingView>,
 }
 
 impl Default for SettingsView {
@@ -49,11 +64,13 @@ impl Default for SettingsView {
             active_profile: 1,
             dpi_stage_count: 0,
             dpi_stages: Vec::new(),
+            dpi_colors: Vec::new(),
             active_dpi_stage: 1,
             polling_rate: 1000,
             debounce_ms: 10,
             lod: 1,
             sleep_seconds: None,
+            lighting: None,
         }
     }
 }
@@ -66,6 +83,8 @@ pub struct SettingsPatch {
     pub profile: Option<u8>,
     /// DPI stages in DPI units, 1-8 entries.
     pub dpi_stages: Option<Vec<u32>>,
+    /// DPI stage colors as hex strings (e.g. `["#FFFF00", ...]`), 1-8 entries.
+    pub dpi_colors: Option<Vec<String>>,
     /// 1-based stage selected by the DPI button.
     pub active_dpi_stage: Option<u8>,
     /// 125, 250, 500, 1000, 2000, 4000 or 8000.
@@ -76,6 +95,7 @@ pub struct SettingsPatch {
     pub lod: Option<u8>,
     /// Idle sleep timer in seconds (`0` disables it).
     pub sleep_seconds: Option<u32>,
+    #[serde(alias = "lighting")]
     pub rgb: Option<RgbPatch>,
 }
 
@@ -89,6 +109,9 @@ pub struct RgbPatch {
     pub wireless_brightness: Option<u8>,
     /// Effect id (0-8) or a name such as `static`, `breathing`, `wave`.
     pub effect: EffectSpec,
+    /// Optional effect name.
+    #[serde(default)]
+    pub effect_name: Option<String>,
     /// Animation rate, 1-100.
     #[serde(default = "default_rate")]
     pub rate: u8,
@@ -134,6 +157,57 @@ impl EffectName {
             Self::Wave => 8,
         }
     }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::Glorious => "glorious",
+            Self::SeamlessBreathing => "seamless_breathing",
+            Self::Breathing => "breathing",
+            Self::Static => "static",
+            Self::SingleBreathing => "single_breathing",
+            Self::Tail => "tail",
+            Self::Rave => "rave",
+            Self::Wave => "wave",
+        }
+    }
+
+    pub fn from_id(id: u8) -> Option<Self> {
+        match id {
+            0 => Some(Self::Off),
+            1 => Some(Self::Glorious),
+            2 => Some(Self::SeamlessBreathing),
+            3 => Some(Self::Breathing),
+            4 => Some(Self::Static),
+            5 => Some(Self::SingleBreathing),
+            6 => Some(Self::Tail),
+            7 => Some(Self::Rave),
+            8 => Some(Self::Wave),
+            _ => None,
+        }
+    }
+}
+
+pub fn effect_name_for(id: u8) -> String {
+    EffectName::from_id(id)
+        .map(|e| e.as_str().to_string())
+        .unwrap_or_else(|| format!("effect_{id}"))
+}
+
+pub fn parse_hex_color(hex: &str) -> Option<[u8; 3]> {
+    let clean = hex.trim().trim_start_matches('#');
+    if clean.len() != 6 {
+        return None;
+    }
+    let r = u8::from_str_radix(&clean[0..2], 16).ok()?;
+    let g = u8::from_str_radix(&clean[2..4], 16).ok()?;
+    let b = u8::from_str_radix(&clean[4..6], 16).ok()?;
+    Some([r, g, b])
+}
+
+pub fn normalize_hex_color(hex: &str) -> String {
+    let clean = hex.trim().trim_start_matches('#');
+    format!("#{}", clean.to_ascii_uppercase())
 }
 
 impl EffectSpec {
@@ -162,6 +236,7 @@ impl SettingsPatch {
     pub fn is_empty(&self) -> bool {
         self.profile.is_none()
             && self.dpi_stages.is_none()
+            && self.dpi_colors.is_none()
             && self.active_dpi_stage.is_none()
             && self.polling_rate.is_none()
             && self.debounce_ms.is_none()
@@ -189,6 +264,29 @@ impl SettingsPatch {
             for dpi in stages {
                 if !(100..=30000).contains(dpi) {
                     return Err(format!("DPI {dpi} outside the supported 100-30000 range"));
+                }
+            }
+        }
+
+        if let Some(colors) = &self.dpi_colors {
+            if colors.is_empty() || colors.len() > 8 {
+                return Err(format!(
+                    "dpi_colors must contain 1-8 entries, got {}",
+                    colors.len()
+                ));
+            }
+            for c in colors {
+                if parse_hex_color(c).is_none() {
+                    return Err(format!("invalid hex color '{c}' in dpi_colors"));
+                }
+            }
+            if let Some(stages) = &self.dpi_stages {
+                if stages.len() != colors.len() {
+                    return Err(format!(
+                        "dpi_stages length ({}) does not match dpi_colors length ({})",
+                        stages.len(),
+                        colors.len()
+                    ));
                 }
             }
         }
@@ -364,5 +462,38 @@ mod tests {
     fn patch_rejects_unknown_fields() {
         let err = serde_json::from_str::<SettingsPatch>(r#"{"dpi": 800}"#);
         assert!(err.is_err());
+    }
+
+    #[test]
+    fn parses_and_normalizes_hex_colors() {
+        assert_eq!(parse_hex_color("#FFFF00"), Some([255, 255, 0]));
+        assert_eq!(parse_hex_color("0000FF"), Some([0, 0, 255]));
+        assert_eq!(parse_hex_color("#xyz123"), None);
+        assert_eq!(parse_hex_color("#123"), None);
+        assert_eq!(normalize_hex_color("ffff00"), "#FFFF00");
+        assert_eq!(normalize_hex_color("#00ff00"), "#00FF00");
+    }
+
+    #[test]
+    fn validates_dpi_colors() {
+        let good = SettingsPatch {
+            dpi_stages: Some(vec![400, 800]),
+            dpi_colors: Some(vec!["#FFFF00".into(), "#0000FF".into()]),
+            ..Default::default()
+        };
+        assert!(good.validate().is_ok());
+
+        let bad_color = SettingsPatch {
+            dpi_colors: Some(vec!["not-a-color".into()]),
+            ..Default::default()
+        };
+        assert!(bad_color.validate().is_err());
+
+        let mismatch = SettingsPatch {
+            dpi_stages: Some(vec![400, 800]),
+            dpi_colors: Some(vec!["#FFFF00".into()]),
+            ..Default::default()
+        };
+        assert!(mismatch.validate().is_err());
     }
 }

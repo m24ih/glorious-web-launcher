@@ -14,8 +14,9 @@ use serde::Serialize;
 
 use crate::devices::{Connection, DeviceDatabase, DeviceEntry, ProtocolFamily};
 use crate::hid::{self, ConnectionKind, DeviceStatus, Endpoint, HidError, SinowealthDevice};
+use crate::profiles::ProfileStore;
 use crate::types::{
-    ConnectionView, DeviceStatusView, DeviceView, FirmwareInfo, SettingsPatch, SettingsView,
+    ConnectionView, DeviceStatusView, DeviceView, FirmwareInfo, SettingsPatch,
 };
 
 /// One matching product + HID node.
@@ -39,16 +40,26 @@ pub struct DeviceManager {
     delay: Duration,
     firmware_cache: Mutex<HashMap<String, FirmwareInfo>>,
     io_lock: Mutex<()>,
+    profiles: ProfileStore,
 }
 
 impl DeviceManager {
     pub fn new(db: DeviceDatabase, delay: Duration) -> Self {
+        Self::with_profiles(db, delay, ProfileStore::load_default())
+    }
+
+    pub fn with_profiles(db: DeviceDatabase, delay: Duration, profiles: ProfileStore) -> Self {
         Self {
             db,
             delay,
             firmware_cache: Mutex::new(HashMap::new()),
             io_lock: Mutex::new(()),
+            profiles,
         }
+    }
+
+    pub fn profiles(&self) -> &ProfileStore {
+        &self.profiles
     }
 
     pub fn database(&self) -> &DeviceDatabase {
@@ -96,7 +107,9 @@ impl DeviceManager {
 
         // Known model, not currently present: return the first record so the UI
         // can still render name, slug and image.
-        Ok(disconnected_view(entries[0]))
+        let mut view = disconnected_view(entries[0]);
+        view.settings = Some(self.profiles.get_current_settings_view(slug));
+        Ok(view)
     }
 
     /// Apply a settings patch and return a fresh detailed view.
@@ -128,6 +141,11 @@ impl DeviceManager {
             .map_err(ManagerError::Hid)?;
 
         let applied = handle.apply(patch).map_err(ManagerError::Hid)?;
+
+        // Save the updated settings (including lighting and dpi_stages/dpi_colors) to ProfileStore.
+        if let Err(err) = self.profiles.update(slug, patch) {
+            tracing::warn!(slug, error = %err, "failed to persist profile changes to disk");
+        }
 
         // Read back so the caller sees what the device actually stored.
         let view = self.build_view(&api, device, true);
@@ -184,6 +202,7 @@ impl DeviceManager {
                 "{} uses the PixArt / Glorious SDK protocol (scaffolded, not implemented)",
                 entry.name
             ));
+            view.settings = Some(self.profiles.get_current_settings_view(&entry.slug));
             return view;
         }
 
@@ -192,6 +211,7 @@ impl DeviceManager {
             Err(err) => {
                 view.status = DeviceStatusView::Error;
                 view.error = Some(err.to_string());
+                view.settings = Some(self.profiles.get_current_settings_view(&entry.slug));
                 return view;
             }
         };
@@ -213,9 +233,36 @@ impl DeviceManager {
             }
         }
 
+        let mut settings = self.profiles.get_current_settings_view(&entry.slug);
+
         if detailed {
             match handle.settings() {
-                Ok(settings) => view.settings = Some(settings),
+                Ok(hw) => {
+                    if hw.active_profile != settings.active_profile {
+                        settings = self.profiles.get_settings_view(&entry.slug, hw.active_profile);
+                    }
+                    settings.active_profile = hw.active_profile;
+                    settings.active_dpi_stage = hw.active_dpi_stage;
+                    settings.polling_rate = hw.polling_rate;
+                    settings.debounce_ms = hw.debounce_ms;
+                    settings.lod = hw.lod;
+                    if hw.sleep_seconds.is_some() {
+                        settings.sleep_seconds = hw.sleep_seconds;
+                    }
+                    if !hw.dpi_stages.is_empty() && !hw.dpi_stages.iter().all(|&v| v == 0) {
+                        settings.dpi_stages = hw.dpi_stages;
+                        settings.dpi_stage_count = hw.dpi_stage_count;
+                    }
+                    self.profiles.sync_hardware_telemetry(
+                        &entry.slug,
+                        hw.active_profile,
+                        hw.active_dpi_stage,
+                        hw.polling_rate,
+                        hw.debounce_ms,
+                        hw.lod,
+                        hw.sleep_seconds,
+                    );
+                }
                 Err(HidError::Protocol { status, .. })
                     if DeviceStatus::from_byte(status) == DeviceStatus::NoDevice =>
                 {
@@ -226,11 +273,11 @@ impl DeviceManager {
                     if view.error.is_none() {
                         view.error = Some(err.to_string());
                     }
-                    view.settings = Some(SettingsView::default());
                 }
             }
         }
 
+        view.settings = Some(settings);
         view
     }
 
@@ -417,5 +464,17 @@ mod tests {
             path: std::ffi::CString::new("/dev/hidraw2").unwrap(),
         };
         assert_eq!(cache_key(&endpoint), "258A:2022:/dev/hidraw2");
+    }
+
+    #[test]
+    fn device_view_includes_profile_settings() {
+        let manager = manager();
+        let view = manager.device("model-o-wireless").expect("model-o-wireless");
+        assert!(view.settings.is_some());
+        let settings = view.settings.unwrap();
+        assert_eq!(settings.active_profile, 1);
+        assert!(!settings.dpi_stages.is_empty());
+        assert!(!settings.dpi_colors.is_empty());
+        assert!(settings.lighting.is_some());
     }
 }
