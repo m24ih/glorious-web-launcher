@@ -3,6 +3,8 @@
 
 import type {
   ActionCategory,
+  ButtonAction,
+  ButtonBinding,
   DockAction,
   DockCategory,
   DpiStage,
@@ -263,8 +265,8 @@ export const EFFECTS: EffectSpec[] = [
     id: 6,
     name: 'tail',
     label: 'Tail',
-    colored: true,
-    preview: 'linear-gradient(90deg, #ffb800, #ffb80022)',
+    colored: false,
+    preview: 'linear-gradient(180deg, #fff60a, #0aff7d, #ff600a, #0affe5, #ff0ad4, #ff0000)',
   },
   {
     id: 7,
@@ -278,7 +280,7 @@ export const EFFECTS: EffectSpec[] = [
     name: 'wave',
     label: 'Wave',
     colored: false,
-    preview: 'linear-gradient(90deg, #ff2d2d, #ffb800, #2d8cff, #c12dff)',
+    preview: 'linear-gradient(180deg, #ff2d2d, #ffb800, #2d8cff, #c12dff)',
   },
   {
     id: 0,
@@ -399,3 +401,248 @@ export function draftFromDevice(device?: { settings?: SettingsView | null } | nu
 
 export const draftFromSettings = (settings?: SettingsView | null) =>
   draftFromDevice(settings ? { settings } : null);
+
+/* ── Button Bindings & Hardware Protocol Mappings ───────────────────────── */
+
+export const PIN_TO_BUTTON_ID: Record<PinId, number> = {
+  left: 1,
+  right: 2,
+  middle: 3,
+  backward: 4,
+  forward: 5,
+  scroll_up: 0x10, // 16
+  scroll_down: 0x11, // 17
+  dpi: 0x14, // 20
+};
+
+export const BUTTON_ID_TO_PIN: Record<number, PinId> = {
+  1: 'left',
+  2: 'right',
+  3: 'middle',
+  4: 'backward',
+  5: 'forward',
+  0x10: 'scroll_up',
+  0x11: 'scroll_down',
+  0x14: 'dpi',
+};
+
+export const MULTIMEDIA_KEY_CODES: Record<string, number> = {
+  'Play / Pause': 0x00cd,
+  'Mute': 0x00e2,
+  'Volume Up': 0x00e9,
+  'Volume Down': 0x00ea,
+  'Next Track': 0x00b5,
+  'Prev Track': 0x00b6,
+  'Previous Track': 0x00b6,
+  'Stop': 0x00b7,
+  'Calculator': 0x0192,
+  'Mail': 0x018a,
+  'Browser Home': 0x0223,
+  'Browser Refresh': 0x0227,
+  'Brightness Up': 0x006f,
+  'Brightness Down': 0x0070,
+  'Screen Lock': 0x019e,
+  'My Computer': 0x0194,
+};
+
+export const SHORTCUT_DEFINITIONS: Record<string, { key_code: number; modifiers: number }> = {
+  'Ctrl + C': { key_code: 0x06, modifiers: 1 },
+  'Ctrl + V': { key_code: 0x19, modifiers: 1 },
+  'Ctrl + X': { key_code: 0x1B, modifiers: 1 },
+  'Ctrl + Z': { key_code: 0x1D, modifiers: 1 },
+  'Ctrl + Y': { key_code: 0x1C, modifiers: 1 },
+  'Ctrl + A': { key_code: 0x04, modifiers: 1 },
+  'Ctrl + S': { key_code: 0x16, modifiers: 1 },
+  'Ctrl + F': { key_code: 0x09, modifiers: 1 },
+  'Ctrl + W': { key_code: 0x1A, modifiers: 1 },
+  'Ctrl + T': { key_code: 0x17, modifiers: 1 },
+  'Alt + Tab': { key_code: 0x2B, modifiers: 4 },
+  'Ctrl + Alt + Del': { key_code: 0x4C, modifiers: 5 },
+  'Win + D': { key_code: 0x07, modifiers: 8 },
+  'Win + L': { key_code: 0x0F, modifiers: 8 },
+  'Win + S': { key_code: 0x16, modifiers: 8 },
+  'Ctrl + Shift + Esc': { key_code: 0x29, modifiers: 3 },
+  'Win + Tab': { key_code: 0x2B, modifiers: 8 },
+  'Alt + F4': { key_code: 0x3D, modifiers: 4 },
+};
+
+export const SPECIAL_KEY_CODES: Record<string, { key_code: number; modifiers?: number }> = {
+  'Esc': { key_code: 0x29 },
+  'Tab': { key_code: 0x2B },
+  'Caps Lock': { key_code: 0x39 },
+  'Space': { key_code: 0x2C },
+  'Enter': { key_code: 0x28 },
+  'Backspace': { key_code: 0x2A },
+  'Shift': { key_code: 0xE1, modifiers: 2 },
+  'Ctrl': { key_code: 0xE0, modifiers: 1 },
+  'Alt': { key_code: 0xE2, modifiers: 4 },
+  'Win': { key_code: 0xE3, modifiers: 8 },
+};
+
+export function pinActionToButtonAction(actionStr: string, category?: ActionCategory): ButtonAction {
+  const norm = actionStr.trim();
+
+  // Basic mouse actions
+  if (norm === 'Left Click') return { type: 'mouse', button: 1 };
+  if (norm === 'Right Click') return { type: 'mouse', button: 2 };
+  if (norm === 'Middle Click') return { type: 'mouse', button: 3 };
+  if (norm === 'Backward') return { type: 'mouse', button: 4 };
+  if (norm === 'Forward') return { type: 'mouse', button: 5 };
+  if (norm === 'Scroll Up') return { type: 'mouse', button: 0x10 };
+  if (norm === 'Scroll Down') return { type: 'mouse', button: 0x11 };
+
+  // Disabled
+  if (norm === 'Disabled' || category === 'disable') return { type: 'disabled' };
+
+  // DPI
+  if (norm === 'DPI Loop' || norm === 'dpi:cycle') return { type: 'dpi', action: 1 };
+  if (norm === 'DPI Up' || norm === 'dpi:up') return { type: 'dpi', action: 2 };
+  if (norm === 'DPI Down' || norm === 'dpi:down') return { type: 'dpi', action: 3 };
+  if (category === 'dpi') return { type: 'dpi', action: 1 };
+
+  // Multimedia keys
+  if (MULTIMEDIA_KEY_CODES[norm] !== undefined) {
+    return { type: 'media', key: MULTIMEDIA_KEY_CODES[norm] };
+  }
+
+  // Predefined shortcuts
+  if (SHORTCUT_DEFINITIONS[norm]) {
+    return { type: 'keyboard', ...SHORTCUT_DEFINITIONS[norm] };
+  }
+
+  // Dynamic compound shortcuts (e.g. "Ctrl + Shift + A")
+  if (norm.includes('+')) {
+    const parts = norm.split('+').map((p) => p.trim());
+    let modifiers = 0;
+    let keyPart = '';
+    for (const part of parts) {
+      const lower = part.toLowerCase();
+      if (lower === 'ctrl') modifiers |= 1;
+      else if (lower === 'shift') modifiers |= 2;
+      else if (lower === 'alt') modifiers |= 4;
+      else if (lower === 'win' || lower === 'cmd' || lower === 'gui') modifiers |= 8;
+      else keyPart = part;
+    }
+    let key_code = 0;
+    if (keyPart.length === 1 && keyPart >= 'A' && keyPart <= 'Z') {
+      key_code = keyPart.charCodeAt(0) - 65 + 0x04;
+    } else if (keyPart.length === 1 && keyPart >= 'a' && keyPart <= 'z') {
+      key_code = keyPart.toUpperCase().charCodeAt(0) - 65 + 0x04;
+    } else if (keyPart === 'Esc') key_code = 0x29;
+    else if (keyPart === 'Tab') key_code = 0x2B;
+    else if (keyPart === 'Del' || keyPart === 'Delete') key_code = 0x4C;
+    else if (/^F[1-9]|1[0-2]$/.test(keyPart)) {
+      const fn = parseInt(keyPart.slice(1), 10);
+      key_code = 0x3a + (fn - 1);
+    }
+    if (key_code > 0) {
+      return { type: 'keyboard', key_code, modifiers };
+    }
+  }
+
+  // Keyboard letters 'A'..'Z'
+  if (norm.length === 1 && norm >= 'A' && norm <= 'Z') {
+    return { type: 'keyboard', key_code: norm.charCodeAt(0) - 65 + 0x04 };
+  }
+  if (norm.length === 1 && norm >= 'a' && norm <= 'z') {
+    return { type: 'keyboard', key_code: norm.toUpperCase().charCodeAt(0) - 65 + 0x04 };
+  }
+
+  // Special keys
+  if (SPECIAL_KEY_CODES[norm]) {
+    return { type: 'keyboard', ...SPECIAL_KEY_CODES[norm] };
+  }
+
+  return { type: 'disabled' };
+}
+
+export function buttonActionToPinAction(action: ButtonAction, pin: PinId): PinAction {
+  switch (action.type) {
+    case 'mouse': {
+      let label = 'Left Click';
+      if (action.button === 1) label = 'Left Click';
+      else if (action.button === 2) label = 'Right Click';
+      else if (action.button === 3) label = 'Middle Click';
+      else if (action.button === 4) label = 'Backward';
+      else if (action.button === 5) label = 'Forward';
+      else if (action.button === 0x10) label = 'Scroll Up';
+      else if (action.button === 0x11) label = 'Scroll Down';
+      return { pin, category: 'basickeys', action: label };
+    }
+    case 'dpi': {
+      let label = 'DPI Loop';
+      if (action.action === 2) label = 'DPI Up';
+      else if (action.action === 3) label = 'DPI Down';
+      return { pin, category: 'dpi', action: label };
+    }
+    case 'media': {
+      const entry = Object.entries(MULTIMEDIA_KEY_CODES).find(
+        ([, code]) => code === action.key
+      );
+      const label = entry ? entry[0] : 'Play / Pause';
+      return { pin, category: 'multimedia', action: label };
+    }
+    case 'disabled': {
+      return { pin, category: 'disable', action: 'Disabled' };
+    }
+    case 'keyboard': {
+      const mod = action.modifiers ?? 0;
+      // Reverse check predefined shortcuts
+      const shortcutMatch = Object.entries(SHORTCUT_DEFINITIONS).find(
+        ([, def]) => def.key_code === action.key_code && def.modifiers === mod
+      );
+      if (shortcutMatch) {
+        return { pin, category: 'shortcuts', action: shortcutMatch[0] };
+      }
+
+      // Check letters A-Z (if no modifiers)
+      if (mod === 0 && action.key_code >= 0x04 && action.key_code <= 0x1d) {
+        const letter = String.fromCharCode(65 + action.key_code - 0x04);
+        return { pin, category: 'basickeys', action: letter };
+      }
+
+      // Check special keys
+      const specialMatch = Object.entries(SPECIAL_KEY_CODES).find(
+        ([, def]) => def.key_code === action.key_code && (def.modifiers ?? 0) === mod
+      );
+      if (specialMatch) {
+        return { pin, category: 'basickeys', action: specialMatch[0] };
+      }
+
+      return { pin, category: 'basickeys', action: 'Space' };
+    }
+    default:
+      return { pin, category: 'disable', action: 'Disabled' };
+  }
+}
+
+/** Convert UI PinAction mappings to wire ButtonBinding array */
+export function pinActionsToBindings(mappings: PinAction[]): ButtonBinding[] {
+  return mappings.map((m) => {
+    const button_id = PIN_TO_BUTTON_ID[m.pin] ?? 1;
+    const action = pinActionToButtonAction(m.action, m.category);
+    return {
+      pin: m.pin,
+      button_id,
+      action,
+    };
+  });
+}
+
+/** Convert wire ButtonBinding array back to UI PinAction mappings */
+export function bindingsToPinActions(bindings: ButtonBinding[]): PinAction[] {
+  const result: Record<PinId, PinAction> = Object.fromEntries(
+    DEFAULT_MAPPINGS.map((m) => [m.pin, { ...m }])
+  ) as Record<PinId, PinAction>;
+
+  for (const b of bindings) {
+    const pin: PinId | undefined = (b.pin in PIN_TO_BUTTON_ID)
+      ? (b.pin as PinId)
+      : BUTTON_ID_TO_PIN[b.button_id];
+    if (pin && b.action) {
+      result[pin] = buttonActionToPinAction(b.action, pin);
+    }
+  }
+
+  return Object.values(result);
+}

@@ -119,7 +119,7 @@
   function getEffectStyle(effectId: number, color: string): string {
     switch (effectId) {
       case 1: // Glorious Mode
-        return 'background: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00ffff, #0066ff, #9900ff, #ff0000); background-size: 200% 100%; box-shadow: 0 0 14px rgba(255, 184, 0, 0.45);';
+        return 'background: linear-gradient(180deg, #ff0000, #ff8800, #ffff00, #00ff00, #00ffff, #0066ff, #9900ff, #ff0000); background-size: 100% 200%; box-shadow: 0 0 14px rgba(255, 184, 0, 0.45);';
       case 2: // Seamless Breathing
         return 'background: linear-gradient(135deg, #ff2d55, #ffb800, #2dff88, #00d4ff, #b52dff); background-size: 150% 150%; box-shadow: 0 0 14px rgba(0, 212, 255, 0.4);';
       case 3: // Breathing
@@ -129,11 +129,11 @@
       case 5: // Single Breathing
         return `background: ${color}; box-shadow: 0 0 16px ${color};`;
       case 6: // Tail
-        return `background: linear-gradient(90deg, transparent 0%, ${color} 50%, transparent 100%); background-size: 200% 100%; box-shadow: 0 0 12px ${color}80;`;
+        return 'background: linear-gradient(180deg, transparent 0%, #fff60a 20%, #0aff7d 40%, #ff600a 60%, #0affe5 80%, #ff0ad4 90%, #ff0000 100%); background-size: 100% 300%; box-shadow: 0 0 14px rgba(255, 184, 0, 0.45);';
       case 7: // Rave
         return 'box-shadow: 0 0 16px rgba(255, 0, 85, 0.6);';
       case 8: // Wave
-        return 'background: linear-gradient(90deg, #ff2d2d, #ffb800, #2dff6a, #2d8cff, #c12dff, #ff2d2d); background-size: 200% 100%; box-shadow: 0 0 14px rgba(45, 140, 255, 0.45);';
+        return 'background: linear-gradient(180deg, #ff2d2d, #ffb800, #2dff6a, #2d8cff, #c12dff, #ff2d2d); background-size: 100% 200%; box-shadow: 0 0 14px rgba(45, 140, 255, 0.45);';
       case 0:
       default:
         return 'background: #18181b; box-shadow: none;';
@@ -409,11 +409,11 @@
 
 <style>
   @keyframes rainbow-flow {
-    0% {
-      background-position: 0% 50%;
+    from {
+      background-position: 50% 0%;
     }
-    100% {
-      background-position: 200% 50%;
+    to {
+      background-position: 50% 200%;
     }
   }
 
@@ -451,11 +451,11 @@
   }
 
   @keyframes tail-flow {
-    0% {
-      background-position: -120% 0;
+    from {
+      background-position: 50% 0%;
     }
-    100% {
-      background-position: 220% 0;
+    to {
+      background-position: 50% 300%;
     }
   }
 
@@ -475,11 +475,11 @@
   }
 
   @keyframes wave-slide {
-    0% {
-      background-position: 0% 50%;
+    from {
+      background-position: 50% 0%;
     }
-    100% {
-      background-position: 200% 50%;
+    to {
+      background-position: 50% 200%;
     }
   }
 

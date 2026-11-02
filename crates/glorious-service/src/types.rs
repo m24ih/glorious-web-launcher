@@ -35,6 +35,33 @@ pub struct LightingView {
     pub color: [u8; 3],
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum ButtonAction {
+    Mouse {
+        button: u8,
+    },
+    Keyboard {
+        key_code: u8,
+        #[serde(default)]
+        modifiers: u8,
+    },
+    Dpi {
+        action: u8,
+    },
+    Media {
+        key: u16,
+    },
+    Disabled,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ButtonBinding {
+    pub pin: String,
+    pub button_id: u8,
+    pub action: ButtonAction,
+}
+
 /// Live settings read back from the mouse.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SettingsView {
@@ -56,6 +83,8 @@ pub struct SettingsView {
     pub sleep_seconds: Option<u32>,
     #[serde(default)]
     pub lighting: Option<LightingView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub buttons: Option<Vec<ButtonBinding>>,
 }
 
 impl Default for SettingsView {
@@ -71,6 +100,7 @@ impl Default for SettingsView {
             lod: 1,
             sleep_seconds: None,
             lighting: None,
+            buttons: None,
         }
     }
 }
@@ -97,6 +127,8 @@ pub struct SettingsPatch {
     pub sleep_seconds: Option<u32>,
     #[serde(alias = "lighting")]
     pub rgb: Option<RgbPatch>,
+    #[serde(default)]
+    pub buttons: Option<Vec<ButtonBinding>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -243,6 +275,7 @@ impl SettingsPatch {
             && self.lod.is_none()
             && self.sleep_seconds.is_none()
             && self.rgb.is_none()
+            && self.buttons.is_none()
     }
 
     /// Validate everything before the first HID write so a bad request cannot
@@ -347,6 +380,37 @@ impl SettingsPatch {
             }
             if !(1..=100).contains(&rgb.rate) {
                 return Err(format!("rgb.rate must be 1-100, got {}", rgb.rate));
+            }
+        }
+
+        if let Some(buttons) = &self.buttons {
+            for b in buttons {
+                if b.button_id == 0 || b.button_id > 16 {
+                    return Err(format!("button_id must be 1-16, got {}", b.button_id));
+                }
+                match &b.action {
+                    ButtonAction::Mouse { button } => {
+                        if *button == 0 || *button > 8 {
+                            return Err(format!("mouse button must be 1-8, got {button}"));
+                        }
+                    }
+                    ButtonAction::Keyboard { key_code, .. } => {
+                        if *key_code == 0 {
+                            return Err("keyboard key_code cannot be 0".to_string());
+                        }
+                    }
+                    ButtonAction::Dpi { action } => {
+                        if *action == 0 {
+                            return Err("dpi action cannot be 0".to_string());
+                        }
+                    }
+                    ButtonAction::Media { key } => {
+                        if *key == 0 {
+                            return Err("media key cannot be 0".to_string());
+                        }
+                    }
+                    ButtonAction::Disabled => {}
+                }
             }
         }
 
@@ -495,5 +559,68 @@ mod tests {
             ..Default::default()
         };
         assert!(mismatch.validate().is_err());
+    }
+
+    #[test]
+    fn deserializes_button_bindings() {
+        let json = r#"{
+            "buttons": [
+                {"pin": "left", "button_id": 1, "action": {"type": "mouse", "button": 1}},
+                {"pin": "dpi", "button_id": 6, "action": {"type": "dpi", "action": 1}},
+                {"pin": "forward", "button_id": 4, "action": {"type": "keyboard", "key_code": 4, "modifiers": 2}},
+                {"pin": "back", "button_id": 5, "action": {"type": "media", "key": 233}},
+                {"pin": "middle", "button_id": 3, "action": {"type": "disabled"}}
+            ]
+        }"#;
+        let patch: SettingsPatch = serde_json::from_str(json).expect("valid button json");
+        let buttons = patch.buttons.as_ref().expect("buttons present");
+        assert_eq!(buttons.len(), 5);
+        assert_eq!(buttons[0].button_id, 1);
+        assert_eq!(buttons[0].action, ButtonAction::Mouse { button: 1 });
+        assert_eq!(
+            buttons[2].action,
+            ButtonAction::Keyboard {
+                key_code: 4,
+                modifiers: 2
+            }
+        );
+        assert_eq!(buttons[4].action, ButtonAction::Disabled);
+        assert!(patch.validate().is_ok());
+    }
+
+    #[test]
+    fn validates_button_bindings() {
+        let bad_button_id = SettingsPatch {
+            buttons: Some(vec![ButtonBinding {
+                pin: "btn".into(),
+                button_id: 0,
+                action: ButtonAction::Disabled,
+            }]),
+            ..Default::default()
+        };
+        assert!(bad_button_id.validate().is_err());
+
+        let bad_mouse = SettingsPatch {
+            buttons: Some(vec![ButtonBinding {
+                pin: "btn".into(),
+                button_id: 1,
+                action: ButtonAction::Mouse { button: 0 },
+            }]),
+            ..Default::default()
+        };
+        assert!(bad_mouse.validate().is_err());
+
+        let bad_key = SettingsPatch {
+            buttons: Some(vec![ButtonBinding {
+                pin: "btn".into(),
+                button_id: 1,
+                action: ButtonAction::Keyboard {
+                    key_code: 0,
+                    modifiers: 0,
+                },
+            }]),
+            ..Default::default()
+        };
+        assert!(bad_key.validate().is_err());
     }
 }

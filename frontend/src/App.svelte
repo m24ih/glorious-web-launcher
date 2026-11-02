@@ -28,6 +28,8 @@
     hexToRgb,
     LIGHTING_EFFECTS,
     LAUNCHER_VERSION,
+    pinActionsToBindings,
+    bindingsToPinActions,
   } from './lib/actions';
 
   // State management
@@ -55,6 +57,7 @@
 
   function onAssign(category: ActionCategory, action: string) {
     if (!selectedPin) return;
+    hasUserModified = true;
     mappings = mappings.map((m) =>
       m.pin === selectedPin ? { ...m, category, action } : m,
     );
@@ -98,7 +101,11 @@
   function onReset() {
     hasUserModified = false;
     draft = draftFromDevice(device);
-    mappings = DEFAULT_PIN_ACTIONS;
+    if (device?.settings?.buttons && device.settings.buttons.length > 0) {
+      mappings = bindingsToPinActions(device.settings.buttons);
+    } else {
+      mappings = DEFAULT_PIN_ACTIONS;
+    }
     showToast('Reverted settings to defaults');
   }
 
@@ -117,6 +124,7 @@
         debounce_ms: draft.debounce_ms,
         lod: draft.lod,
         sleep_seconds: draft.sleep_seconds === 'off' ? 0 : draft.sleep_seconds,
+        buttons: pinActionsToBindings(mappings),
         rgb: {
           brightness: draft.lighting.brightness,
           effect: draft.lighting.effect,
@@ -129,6 +137,9 @@
       if (res?.device) {
         device = res.device;
         draft = draftFromDevice(res.device);
+        if (res.device.settings?.buttons && res.device.settings.buttons.length > 0) {
+          mappings = bindingsToPinActions(res.device.settings.buttons);
+        }
         hasUserModified = false;
       }
       showToast('Settings applied to mouse');
@@ -149,6 +160,9 @@
           device = connected;
           if (!hasUserModified) {
             draft = draftFromDevice(connected);
+            if (connected.settings?.buttons && connected.settings.buttons.length > 0) {
+              mappings = bindingsToPinActions(connected.settings.buttons);
+            }
           }
           if (connected.settings?.active_profile) {
             activeProfile = connected.settings.active_profile;
@@ -171,6 +185,9 @@
             device = chosen;
             if (!hasUserModified) {
               draft = draftFromDevice(chosen);
+              if (chosen.settings?.buttons && chosen.settings.buttons.length > 0) {
+                mappings = bindingsToPinActions(chosen.settings.buttons);
+              }
             }
           }
         } else if (event.type === 'applied') {
@@ -178,6 +195,9 @@
             device = event.device;
             if (!hasUserModified) {
               draft = draftFromDevice(event.device);
+              if (event.device.settings?.buttons && event.device.settings.buttons.length > 0) {
+                mappings = bindingsToPinActions(event.device.settings.buttons);
+              }
             }
           }
           showToast('Settings synced from hardware');

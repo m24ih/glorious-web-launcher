@@ -32,7 +32,9 @@ use hidapi::{HidApi, HidDevice};
 
 use crate::devices::{Connection, DeviceEntry};
 use crate::hid::{self, ConnectionKind, DeviceStatus, Endpoint, HidError, REPORT_ID, REPORT_LEN};
-use crate::types::{BatteryInfo, FirmwareInfo, RgbPatch, SettingsPatch, SettingsView};
+use crate::types::{
+    BatteryInfo, ButtonAction, ButtonBinding, FirmwareInfo, RgbPatch, SettingsPatch, SettingsView,
+};
 
 /// Request target: the 2.4 GHz receiver itself.
 pub const TARGET_DONGLE: u8 = 0x00;
@@ -332,7 +334,7 @@ pub fn hid_to_polling_rate(selector: u8) -> Option<u32> {
 /// Animation speed byte from the UI rate (1-100), matching Glorious CORE.
 pub fn rgb_speed(rate: u8, effect: u8) -> u8 {
     let rate = rate.clamp(1, 100) as i32;
-    let speed = if effect == 6 || effect == 7 {
+    let speed = if effect == 7 || effect == 8 {
         (105 - rate) * 2
     } else {
         (105 - rate) / 5
@@ -677,6 +679,13 @@ impl SinowealthDevice {
             applied.push("rgb".to_string());
         }
 
+        if let Some(buttons) = &patch.buttons {
+            for button in buttons {
+                self.set_button_binding(profile, button)?;
+            }
+            applied.push("buttons".to_string());
+        }
+
         Ok(applied)
     }
 
@@ -823,13 +832,26 @@ impl SinowealthDevice {
         let effect = rgb.effect.resolve().map_err(HidError::InvalidInput)?;
         let speed = rgb_speed(rgb.rate, effect);
 
-        let mut payload = Vec::with_capacity(8);
+        let mut payload = Vec::with_capacity(24);
         payload.push(profile);
         payload.push(0xFF); // all zones
         payload.push(effect);
         payload.push(0x00); // direction
         payload.push(speed);
-        if effect == 2 {
+
+        const TAIL_COLORS: [[u8; 3]; 6] = [
+            [255, 246, 10],
+            [10, 255, 125],
+            [255, 96, 10],
+            [10, 255, 229],
+            [255, 10, 212],
+            [255, 0, 0],
+        ];
+        if effect == 6 {
+            for c in TAIL_COLORS {
+                payload.extend_from_slice(&c);
+            }
+        } else if effect == 2 {
             // Seamless breathing ignores the configured colors and uses red.
             payload.extend_from_slice(&[0xFF, 0x00, 0x00]);
         } else {
@@ -860,6 +882,54 @@ impl SinowealthDevice {
 
         Ok(())
     }
+
+    pub fn set_button_binding(&self, profile: u8, binding: &ButtonBinding) -> Result<(), HidError> {
+        let payload = build_button_payload(profile, binding);
+        self.write(TARGET_MOUSE, CATEGORY_BUTTONS, 0x00, &payload)?;
+        std::thread::sleep(Duration::from_millis(20));
+        Ok(())
+    }
+}
+
+pub fn build_button_payload(profile: u8, binding: &ButtonBinding) -> [u8; 10] {
+    let mut payload = [0u8; 10];
+    payload[0] = profile;
+    payload[1] = binding.button_id;
+    payload[2] = 0x00;
+
+    match &binding.action {
+        ButtonAction::Mouse { button } => {
+            payload[3] = 0x01;
+            payload[4] = 0x01;
+            payload[5] = *button;
+            payload[6] = 0x00;
+        }
+        ButtonAction::Keyboard { key_code, modifiers } => {
+            payload[3] = 0x04;
+            payload[4] = 0x02;
+            payload[5] = *modifiers;
+            payload[6] = *key_code;
+        }
+        ButtonAction::Dpi { action } => {
+            payload[3] = 0x07;
+            payload[4] = 0x01;
+            payload[5] = *action;
+            payload[6] = 0x00;
+        }
+        ButtonAction::Media { key } => {
+            payload[3] = 0x05;
+            payload[4] = 0x02;
+            payload[5] = (*key & 0xFF) as u8;
+            payload[6] = (*key >> 8) as u8;
+        }
+        ButtonAction::Disabled => {
+            payload[3] = 0x00;
+            payload[4] = 0x00;
+            payload[5] = 0x00;
+            payload[6] = 0x00;
+        }
+    }
+    payload
 }
 
 #[cfg(test)]
@@ -1047,7 +1117,9 @@ mod tests {
     fn computes_rgb_speed_like_glorious_core() {
         assert_eq!(rgb_speed(100, 1), 1);
         assert_eq!(rgb_speed(50, 4), 11);
-        assert_eq!(rgb_speed(50, 7), 110);
+        assert_eq!(rgb_speed(50, 6), 11); // Tail uses standard formula
+        assert_eq!(rgb_speed(50, 7), 110); // Rave uses double formula
+        assert_eq!(rgb_speed(50, 8), 110); // Wave uses double formula
     }
 
     #[test]
@@ -1085,5 +1157,61 @@ mod tests {
         assert_eq!(&request[11..14], &[0, 0, 255]);
         assert_eq!(&request[14..17], &[255, 0, 0]);
         assert_eq!(&request[17..20], &[0, 255, 0]);
+    }
+
+    #[test]
+    fn builds_button_payload_for_actions() {
+        let mouse_btn = ButtonBinding {
+            pin: "left".into(),
+            button_id: 1,
+            action: ButtonAction::Mouse { button: 1 },
+        };
+        assert_eq!(
+            build_button_payload(1, &mouse_btn),
+            [1, 1, 0, 0x01, 0x01, 1, 0, 0, 0, 0]
+        );
+
+        let kbd_btn = ButtonBinding {
+            pin: "key".into(),
+            button_id: 4,
+            action: ButtonAction::Keyboard {
+                key_code: 0x04,
+                modifiers: 0x02,
+            },
+        };
+        assert_eq!(
+            build_button_payload(2, &kbd_btn),
+            [2, 4, 0, 0x04, 0x02, 0x02, 0x04, 0, 0, 0]
+        );
+
+        let dpi_btn = ButtonBinding {
+            pin: "dpi".into(),
+            button_id: 6,
+            action: ButtonAction::Dpi { action: 3 },
+        };
+        assert_eq!(
+            build_button_payload(1, &dpi_btn),
+            [1, 6, 0, 0x07, 0x01, 3, 0, 0, 0, 0]
+        );
+
+        let media_btn = ButtonBinding {
+            pin: "vol_up".into(),
+            button_id: 5,
+            action: ButtonAction::Media { key: 0x00E9 },
+        };
+        assert_eq!(
+            build_button_payload(1, &media_btn),
+            [1, 5, 0, 0x05, 0x02, 0xE9, 0x00, 0, 0, 0]
+        );
+
+        let disabled_btn = ButtonBinding {
+            pin: "none".into(),
+            button_id: 2,
+            action: ButtonAction::Disabled,
+        };
+        assert_eq!(
+            build_button_payload(3, &disabled_btn),
+            [3, 2, 0, 0x00, 0x00, 0x00, 0x00, 0, 0, 0]
+        );
     }
 }

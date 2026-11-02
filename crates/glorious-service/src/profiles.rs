@@ -14,7 +14,7 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    effect_name_for, normalize_hex_color, LightingView, SettingsPatch, SettingsView,
+    effect_name_for, normalize_hex_color, ButtonBinding, LightingView, SettingsPatch, SettingsView,
 };
 
 /// Configuration for one profile slot (1-based, 1 to 3).
@@ -29,7 +29,12 @@ pub struct ProfileConfig {
     pub debounce_ms: u8,
     pub lod: u8,
     pub sleep_seconds: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub buttons: Option<Vec<ButtonBinding>>,
 }
+
+/// Alias for stored profile settings.
+pub type StoredSettings = ProfileConfig;
 
 impl ProfileConfig {
     pub fn to_settings_view(&self, active_profile: u8) -> SettingsView {
@@ -44,6 +49,7 @@ impl ProfileConfig {
             lod: self.lod,
             sleep_seconds: self.sleep_seconds,
             lighting: Some(self.lighting.clone()),
+            buttons: self.buttons.clone(),
         }
     }
 }
@@ -260,6 +266,9 @@ impl ProfileStore {
                 color: rgb.color,
             };
         }
+        if let Some(buttons) = &patch.buttons {
+            profile.buttons = Some(buttons.clone());
+        }
 
         self.save_locked(&data)
     }
@@ -328,6 +337,7 @@ pub fn sensible_default_profile(profile_id: u8) -> ProfileConfig {
         debounce_ms: 10,
         lod: 1,
         sleep_seconds: Some(600),
+        buttons: None,
     }
 }
 
@@ -535,6 +545,7 @@ pub fn import_glorious_core_db_from_str(content: &str) -> Result<ProfileStoreDat
                         debounce_ms,
                         lod,
                         sleep_seconds,
+                        buttons: None,
                     },
                 );
             }
@@ -559,6 +570,7 @@ pub fn import_glorious_core_db_from_str(content: &str) -> Result<ProfileStoreDat
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::ButtonAction;
 
     const SAMPLE_DEVICEDB_LINE: &str = r#"{"vid":["0x258A","0x258A"],"pid":["0x2011","0x2022"],"SN":"0x258A0x2011","devicename":"MODEL O WIRELESS","ModelType":1,"image":"ModelO","battery":true,"profile":[{"profileName":"PROFILE1","profileid":1,"performance":{"pollingrate":1000,"inputLatency":16,"LodValue":1,"DebounceValue":12,"DpiNum":4,"dpiSelectIndex":3,"DpiStage":[{"value":400,"color":"FFFF00"},{"value":800,"color":"0000FF"},{"value":1600,"color":"FF0000"},{"value":3200,"color":"00FF00"}]},"lighting":{"Effect":0,"RateValue":60,"OpacityValue":60,"WiredBrightnessValue":60,"WirelessBrightnessValue":60,"SepatateCheckValue":false,"Color":[{"R":255,"G":0,"B":0,"flag":true}]}},{"profileName":"PROFILE2","profileid":2,"performance":{"pollingrate":1000,"inputLatency":16,"LodValue":1,"DebounceValue":10,"DpiNum":4,"dpiSelectIndex":2,"DpiStage":[{"value":400,"color":"FFFF00"},{"value":800,"color":"0000FF"},{"value":1600,"color":"FF0000"},{"value":3200,"color":"00FF00"}]},"lighting":{"Effect":0,"RateValue":60,"OpacityValue":60,"WiredBrightnessValue":60,"WirelessBrightnessValue":60,"SepatateCheckValue":false,"Color":[{"R":255,"G":0,"B":0,"flag":true}]}}],"profileindex":1,"value":2,"_id":"j5L9StqKTiuDNECV","sleep":true,"sleeptime":10}"#;
 
@@ -637,5 +649,26 @@ mod tests {
             view.dpi_colors,
             vec!["#112233", "#445566", "#778899"]
         );
+    }
+
+    #[test]
+    fn updates_buttons_via_patch() {
+        let store = ProfileStore::in_memory(ProfileStore::default_data());
+        let patch = SettingsPatch {
+            buttons: Some(vec![ButtonBinding {
+                pin: "dpi_loop".into(),
+                button_id: 6,
+                action: ButtonAction::Dpi { action: 1 },
+            }]),
+            ..Default::default()
+        };
+
+        store.update("model-o-wireless", &patch).unwrap();
+        let view = store.get_current_settings_view("model-o-wireless");
+        assert!(view.buttons.is_some());
+        let btns = view.buttons.unwrap();
+        assert_eq!(btns.len(), 1);
+        assert_eq!(btns[0].button_id, 6);
+        assert_eq!(btns[0].action, ButtonAction::Dpi { action: 1 });
     }
 }

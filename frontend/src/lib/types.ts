@@ -32,6 +32,7 @@ export interface SettingsView {
   debounce_ms: number;
   lod: number;
   sleep_seconds: number | null;
+  buttons?: ButtonBinding[];
   lighting?: {
     effect: EffectId | number;
     effect_name?: string;
@@ -116,6 +117,19 @@ export interface RgbPatch {
   color: [number, number, number];
 }
 
+export type ButtonAction =
+  | { type: 'mouse'; button: number }
+  | { type: 'keyboard'; key_code: number; modifiers?: number }
+  | { type: 'dpi'; action: number }
+  | { type: 'media'; key: number }
+  | { type: 'disabled' };
+
+export interface ButtonBinding {
+  pin: string;
+  button_id: number;
+  action: ButtonAction;
+}
+
 export interface SettingsPatch {
   profile?: number;
   dpi_stages?: number[];
@@ -125,6 +139,7 @@ export interface SettingsPatch {
   debounce_ms?: number;
   lod?: number;
   sleep_seconds?: number;
+  buttons?: ButtonBinding[];
   rgb?: RgbPatch;
 }
 

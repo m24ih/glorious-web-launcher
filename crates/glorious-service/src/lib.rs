@@ -23,8 +23,8 @@ pub mod ws;
 
 pub use devices::{DeviceDatabase, DeviceEntry};
 pub use manager::DeviceManager;
-pub use profiles::ProfileStore;
+pub use profiles::{ProfileConfig, ProfileStore, StoredSettings};
 pub use types::{
-    BatteryInfo, ConnectionView, DeviceStatusView, DeviceView, EffectName, EffectSpec,
-    FirmwareInfo, LightingView, RgbPatch, SettingsPatch, SettingsView,
+    BatteryInfo, ButtonAction, ButtonBinding, ConnectionView, DeviceStatusView, DeviceView,
+    EffectName, EffectSpec, FirmwareInfo, LightingView, RgbPatch, SettingsPatch, SettingsView,
 };
