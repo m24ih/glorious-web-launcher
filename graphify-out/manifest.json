@@ -18,8 +18,8 @@
     "semantic_hash": ""
   },
   "crates/glorious-service/src/api.rs": {
-    "mtime": 1793660809.5358138,
-    "seen": 1793660845.6741164,
+    "mtime": 1793662436.9580762,
+    "seen": 1793662478.637244,
     "ast_hash": "ab0574655cef145798eddf930ba5aa17",
     "semantic_hash": ""
   },
@@ -60,15 +60,15 @@
     "semantic_hash": ""
   },
   "crates/glorious-service/src/manager.rs": {
-    "mtime": 1793647646.2258697,
-    "seen": 1793647723.0597603,
-    "ast_hash": "2b7b8d9e6d15494f0687120d8a743ebf",
+    "mtime": 1793661985.0514228,
+    "seen": 1793662478.637258,
+    "ast_hash": "728aeefc1dceba956464ef9b5c066ad2",
     "semantic_hash": ""
   },
   "crates/glorious-service/src/types.rs": {
-    "mtime": 1793660651.1431456,
-    "seen": 1793660845.674135,
-    "ast_hash": "4211df21d11208b4cc21546f86a9d87c",
+    "mtime": 1793661992.19445,
+    "seen": 1793662478.6372616,
+    "ast_hash": "33d68372dfb05b92968f64c1768b3a4c",
     "semantic_hash": ""
   },
   "crates/glorious-service/src/ws.rs": {
@@ -456,15 +456,15 @@
     "semantic_hash": ""
   },
   "frontend/src/App.svelte": {
-    "mtime": 1793660591.3360016,
-    "seen": 1793660845.6741438,
-    "ast_hash": "6c47adf2f438d24f5e29dae3cf509def",
+    "mtime": 1793662388.2059016,
+    "seen": 1793662478.6372697,
+    "ast_hash": "54935efe239177b8fe052bd43a48c2f6",
     "semantic_hash": ""
   },
   "frontend/src/components/Dock.svelte": {
-    "mtime": 1793629216.4389675,
-    "seen": 1793629493.9282458,
-    "ast_hash": "4cef7ae97bea999bdb25e991275df6d5",
+    "mtime": 1793662237.939359,
+    "seen": 1793662478.6372714,
+    "ast_hash": "38805f7e156339e9749892aabb46c10f",
     "semantic_hash": ""
   },
   "frontend/src/components/FirmwareView.svelte": {
@@ -474,9 +474,9 @@
     "semantic_hash": ""
   },
   "frontend/src/components/LightingView.svelte": {
-    "mtime": 1793660546.825896,
-    "seen": 1793660845.6741488,
-    "ast_hash": "5c6348c50ce291466d9aa091024415f4",
+    "mtime": 1793662306.868609,
+    "seen": 1793662478.637274,
+    "ast_hash": "c1df23308d83759519eae5b5fbb99e62",
     "semantic_hash": ""
   },
   "frontend/src/components/PointerView.svelte": {
@@ -498,9 +498,9 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/actions.ts": {
-    "mtime": 1793660551.6929076,
-    "seen": 1793660845.6741555,
-    "ast_hash": "65da77e49309ba58b614066ce8c96916",
+    "mtime": 1793662234.4673464,
+    "seen": 1793662478.6372802,
+    "ast_hash": "cdf1e3983d725287fe91deaa5b94ae0a",
     "semantic_hash": ""
   },
   "frontend/src/lib/api.ts": {
@@ -510,9 +510,9 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/types.ts": {
-    "mtime": 1793660386.156527,
-    "seen": 1793660845.674158,
-    "ast_hash": "e401a9da43a8f50b27019808b06f2295",
+    "mtime": 1793662100.8998559,
+    "seen": 1793662478.6372833,
+    "ast_hash": "93042150f4eaf46c044b742a7e7be121",
     "semantic_hash": ""
   },
   "frontend/src/main.ts": {

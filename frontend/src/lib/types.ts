@@ -122,6 +122,7 @@ export type ButtonAction =
   | { type: 'mouse'; button: number }
   | { type: 'keyboard'; key_code: number; modifiers?: number }
   | { type: 'dpi'; action: number }
+  | { type: 'profile'; action: number }
   | { type: 'media'; key: number }
   | { type: 'disabled' };
 

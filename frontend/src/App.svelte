@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import Sidebar from './components/Sidebar.svelte';
   import Stage from './components/Stage.svelte';
   import Dock from './components/Dock.svelte';
@@ -49,6 +49,7 @@
   const canApply = $derived(device !== null && !applying);
 
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
+  let profileDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   function showToast(msg: string) {
     toastMessage = msg;
     if (toastTimer) clearTimeout(toastTimer);
@@ -104,6 +105,28 @@
         draft: $state.snapshot(draft),
         mappings: [...mappings],
       };
+    }
+
+    if (profileDebounceTimer) {
+      clearTimeout(profileDebounceTimer);
+      profileDebounceTimer = null;
+    }
+
+    if (device?.slug) {
+      const slug = device.slug;
+      profileDebounceTimer = setTimeout(async () => {
+        try {
+          const res = await applySettings(slug, { profile: newProfile });
+          if (res?.device) {
+            device = res.device;
+            populateProfileDrafts(res.device);
+          }
+          showToast(`Switched mouse to Profile ${newProfile}`);
+        } catch (e: any) {
+          console.warn('Failed to switch profile on device:', e);
+          showToast(e?.message ?? `Failed to switch to Profile ${newProfile}`);
+        }
+      }, 150);
     }
   }
 
@@ -308,7 +331,12 @@
     return () => {
       unsubWs();
       if (toastTimer) clearTimeout(toastTimer);
+      if (profileDebounceTimer) clearTimeout(profileDebounceTimer);
     };
+  });
+
+  onDestroy(() => {
+    if (profileDebounceTimer) clearTimeout(profileDebounceTimer);
   });
 </script>
 

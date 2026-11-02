@@ -49,6 +49,9 @@ pub enum ButtonAction {
     Dpi {
         action: u8,
     },
+    Profile {
+        action: u8,
+    },
     Media {
         key: u16,
     },
@@ -390,8 +393,19 @@ impl SettingsPatch {
                 }
                 match &b.action {
                     ButtonAction::Mouse { button } => {
-                        if *button == 0 || (*button > 8 && *button != 0x10 && *button != 0x11) {
-                            return Err(format!("mouse button must be 1-8 or scroll, got {button}"));
+                        let valid = (1..=8).contains(button)
+                            || *button == 0x10
+                            || *button == 0x11
+                            || *button == 0x18
+                            || *button == 0x19
+                            || *button == 0x0C;
+                        if !valid {
+                            return Err(format!("invalid mouse button {button}"));
+                        }
+                    }
+                    ButtonAction::Profile { action } => {
+                        if *action == 0 || *action > 4 {
+                            return Err(format!("invalid profile action {action}"));
                         }
                     }
                     ButtonAction::Keyboard { key_code, .. } => {
@@ -647,7 +661,7 @@ mod tests {
         };
         assert!(bad_button_33.validate().is_err());
 
-        for accepted_mouse in [0x10, 0x11] {
+        for accepted_mouse in [0x10, 0x11, 0x18, 0x19, 0x0C] {
             let good_mouse = SettingsPatch {
                 buttons: Some(vec![ButtonBinding {
                     pin: "btn".into(),
@@ -668,5 +682,29 @@ mod tests {
             ..Default::default()
         };
         assert!(bad_mouse_9.validate().is_err());
+
+        for action in 1..=4 {
+            let good_profile = SettingsPatch {
+                buttons: Some(vec![ButtonBinding {
+                    pin: "profile_btn".into(),
+                    button_id: 1,
+                    action: ButtonAction::Profile { action },
+                }]),
+                ..Default::default()
+            };
+            assert!(good_profile.validate().is_ok(), "profile action {action} should be valid");
+        }
+
+        for bad_action in [0, 5] {
+            let bad_profile = SettingsPatch {
+                buttons: Some(vec![ButtonBinding {
+                    pin: "profile_btn".into(),
+                    button_id: 1,
+                    action: ButtonAction::Profile { action: bad_action },
+                }]),
+                ..Default::default()
+            };
+            assert!(bad_profile.validate().is_err(), "profile action {bad_action} should be invalid");
+        }
     }
 }

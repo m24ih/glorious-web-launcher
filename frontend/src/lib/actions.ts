@@ -150,6 +150,10 @@ export const DOCK_ACTIONS: Record<ActionCategory, DockAction[]> = {
     { id: 'mouse:backward', label: 'Backward' },
     { id: 'mouse:scroll_up', label: 'Scroll Up' },
     { id: 'mouse:scroll_down', label: 'Scroll Down' },
+    { id: 'mouse:profile_cycle', label: 'Profile Cycle' },
+    { id: 'mouse:profile_up', label: 'Profile Up' },
+    { id: 'mouse:profile_down', label: 'Profile Down' },
+    { id: 'mouse:battery', label: 'Battery Check' },
     { id: 'dpi:loop', label: 'DPI Loop' },
   ],
   basickeys: [
@@ -502,6 +506,22 @@ export function pinActionToButtonAction(actionStr: string, category?: ActionCate
   if (norm === 'Scroll Up' || norm === 'mouse:scroll_up') return { type: 'mouse', button: 0x10 };
   if (norm === 'Scroll Down' || norm === 'mouse:scroll_down') return { type: 'mouse', button: 0x11 };
 
+  // Profile actions & Battery check
+  if (
+    norm === 'Profile Cycle' ||
+    norm === 'mouse:profile_cycle' ||
+    norm === 'Profile Up' ||
+    norm === 'mouse:profile_up'
+  ) {
+    return { type: 'profile', action: 4 };
+  }
+  if (norm === 'Profile Down' || norm === 'mouse:profile_down') {
+    return { type: 'profile', action: 3 };
+  }
+  if (norm === 'Battery Check' || norm === 'mouse:battery') {
+    return { type: 'mouse', button: 0x0C };
+  }
+
   // Disabled
   if (norm === 'Disabled' || norm === 'disable' || category === 'disable') return { type: 'disabled' };
 
@@ -580,6 +600,13 @@ export function buttonActionToPinAction(action: ButtonAction, pin: PinId): PinAc
       else if (action.button === 5) label = 'Forward';
       else if (action.button === 0x10) label = 'Scroll Up';
       else if (action.button === 0x11) label = 'Scroll Down';
+      else if (action.button === 0x18) label = 'Profile Cycle';
+      else if (action.button === 0x19) label = 'Profile Down';
+      else if (action.button === 0x0C) label = 'Battery Check';
+      return { pin, category: 'mousekeys', action: label };
+    }
+    case 'profile': {
+      const label = action.action === 3 ? 'Profile Down' : 'Profile Cycle';
       return { pin, category: 'mousekeys', action: label };
     }
     case 'dpi': {

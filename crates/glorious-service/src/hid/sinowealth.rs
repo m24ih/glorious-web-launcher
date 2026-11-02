@@ -899,9 +899,32 @@ pub fn build_button_payload(profile: u8, binding: &ButtonBinding) -> [u8; 10] {
 
     match &binding.action {
         ButtonAction::Mouse { button } => {
-            payload[3] = 0x01;
+            if *button == 0x18 {
+                payload[3] = 0x08; // ID: Profile
+                payload[4] = 0x01; // Size
+                payload[5] = 0x04; // Loop Up
+                payload[6] = 0x00;
+            } else if *button == 0x19 {
+                payload[3] = 0x08; // ID: Profile
+                payload[4] = 0x01; // Size
+                payload[5] = 0x03; // Loop Down
+                payload[6] = 0x00;
+            } else if *button == 0x0C {
+                payload[3] = 0x0C; // ID: Battery
+                payload[4] = 0x01;
+                payload[5] = 0x01;
+                payload[6] = 0x00;
+            } else {
+                payload[3] = 0x01;
+                payload[4] = 0x01;
+                payload[5] = *button;
+                payload[6] = 0x00;
+            }
+        }
+        ButtonAction::Profile { action } => {
+            payload[3] = 0x08;
             payload[4] = 0x01;
-            payload[5] = *button;
+            payload[5] = if *action == 2 || *action == 3 { 0x03 } else { 0x04 };
             payload[6] = 0x00;
         }
         ButtonAction::Keyboard { key_code, modifiers } => {
@@ -1212,6 +1235,56 @@ mod tests {
         assert_eq!(
             build_button_payload(3, &disabled_btn),
             [3, 2, 0, 0x00, 0x00, 0x00, 0x00, 0, 0, 0]
+        );
+
+        let profile_up_btn = ButtonBinding {
+            pin: "prof_up".into(),
+            button_id: 7,
+            action: ButtonAction::Profile { action: 1 },
+        };
+        assert_eq!(
+            build_button_payload(1, &profile_up_btn),
+            [1, 7, 0, 0x08, 0x01, 0x04, 0, 0, 0, 0]
+        );
+
+        let profile_down_btn = ButtonBinding {
+            pin: "prof_down".into(),
+            button_id: 8,
+            action: ButtonAction::Profile { action: 2 },
+        };
+        assert_eq!(
+            build_button_payload(1, &profile_down_btn),
+            [1, 8, 0, 0x08, 0x01, 0x03, 0, 0, 0, 0]
+        );
+
+        let mouse_prof_up = ButtonBinding {
+            pin: "mouse_prof_up".into(),
+            button_id: 9,
+            action: ButtonAction::Mouse { button: 0x18 },
+        };
+        assert_eq!(
+            build_button_payload(1, &mouse_prof_up),
+            [1, 9, 0, 0x08, 0x01, 0x04, 0, 0, 0, 0]
+        );
+
+        let mouse_prof_down = ButtonBinding {
+            pin: "mouse_prof_down".into(),
+            button_id: 10,
+            action: ButtonAction::Mouse { button: 0x19 },
+        };
+        assert_eq!(
+            build_button_payload(1, &mouse_prof_down),
+            [1, 10, 0, 0x08, 0x01, 0x03, 0, 0, 0, 0]
+        );
+
+        let battery_btn = ButtonBinding {
+            pin: "battery".into(),
+            button_id: 11,
+            action: ButtonAction::Mouse { button: 0x0C },
+        };
+        assert_eq!(
+            build_button_payload(1, &battery_btn),
+            [1, 11, 0, 0x0C, 0x01, 0x01, 0, 0, 0, 0]
         );
     }
 }
