@@ -1,0 +1,908 @@
+{
+  "meta": {
+    "generatedAt": "2026-11-02T13:22:01+00:00",
+    "source": "/home/melih/Projects/Glorious-Core-Linux/src/electron-process/renderer-interop/database/SupportDevice.DB",
+    "sourceFormat": "newline-delimited JSON",
+    "totalRecords": 26,
+    "modelType1Records": 17,
+    "mouseCount": 16,
+    "excluded": [
+      {
+        "id": "DongleV2Kit",
+        "name": "Dongle V2 Kit",
+        "reason": "USB receiver/dongle, not a mouse (ModelType 1)"
+      }
+    ],
+    "imagesMissing": []
+  },
+  "devices": [
+    {
+      "id": "Ji1tw2mhN6A65aVZnS",
+      "name": "MODEL D- WIRELESS",
+      "slug": "model-d-wireless",
+      "routerID": "ModelOSeries",
+      "modelType": 1,
+      "image": {
+        "key": "ModelDWireless",
+        "file": "ModelDWireless3.png",
+        "path": "assets/images/ModelDWireless3.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x258A",
+          "pid": "0x2014"
+        },
+        {
+          "type": "Dongle",
+          "vid": "0x258A",
+          "pid": "0x2025"
+        }
+      ],
+      "connectionTypes": [
+        "USB",
+        "Dongle"
+      ],
+      "battery": true,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 0,
+      "fwUpdateExtension": [
+        ".exe",
+        "Wireless.exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x00"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0xffa0",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0x0c",
+            "usage": "0x01"
+          }
+        ]
+      }
+    },
+    {
+      "id": "JiVt24mhNt15a2Zn3",
+      "name": "MODEL O- WIRELESS",
+      "slug": "model-o-wireless",
+      "routerID": "ModelOSeries",
+      "modelType": 1,
+      "image": {
+        "key": "ModelO-Wireless",
+        "file": "ModelO-Wireless3.png",
+        "path": "assets/images/ModelO-Wireless3.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x258A",
+          "pid": "0x2013"
+        },
+        {
+          "type": "Dongle",
+          "vid": "0x258A",
+          "pid": "0x2024"
+        }
+      ],
+      "connectionTypes": [
+        "USB",
+        "Dongle"
+      ],
+      "battery": true,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 0,
+      "fwUpdateExtension": [
+        ".exe",
+        "Wireless.exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x00"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0xffa0",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0x0c",
+            "usage": "0x01"
+          }
+        ]
+      }
+    },
+    {
+      "id": "JiVthmhNA6BGVZnS",
+      "name": "MODEL O WIRELESS",
+      "slug": "model-o-wireless",
+      "routerID": "ModelOSeries",
+      "modelType": 1,
+      "image": {
+        "key": "ModelO",
+        "file": "ModelO3.png",
+        "path": "assets/images/ModelO3.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x258A",
+          "pid": "0x2011"
+        },
+        {
+          "type": "Dongle",
+          "vid": "0x258A",
+          "pid": "0x2022"
+        }
+      ],
+      "connectionTypes": [
+        "USB",
+        "Dongle"
+      ],
+      "battery": true,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 0,
+      "fwUpdateExtension": [
+        ".exe",
+        "Wireless.exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x00"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0xffa0",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0x0c",
+            "usage": "0x01"
+          }
+        ]
+      }
+    },
+    {
+      "id": "JiVtw4mhNA65aVZG8",
+      "name": "MODEL I",
+      "slug": "model-i",
+      "routerID": "ModelISeries",
+      "modelType": 1,
+      "image": {
+        "key": "ModelI",
+        "file": "ModelI3.png",
+        "path": "assets/images/ModelI3.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x22D4",
+          "pid": "0x1503"
+        }
+      ],
+      "connectionTypes": [
+        "USB"
+      ],
+      "battery": false,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 0,
+      "fwUpdateExtension": [
+        ".exe",
+        "Wireless.exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xff01",
+            "usage": "0x02"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xff02",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0xff02",
+            "usage": "0x02"
+          },
+          {
+            "usagepage": "0x0c",
+            "usage": "0x01"
+          }
+        ]
+      }
+    },
+    {
+      "id": "JiVtw4mhNA65aVZnS",
+      "name": "MODEL D WIRELESS",
+      "slug": "model-d-wireless",
+      "routerID": "ModelOSeries",
+      "modelType": 1,
+      "image": {
+        "key": "ModelDWireless",
+        "file": "ModelDWireless3.png",
+        "path": "assets/images/ModelDWireless3.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x258A",
+          "pid": "0x2012"
+        },
+        {
+          "type": "Dongle",
+          "vid": "0x258A",
+          "pid": "0x2023"
+        }
+      ],
+      "connectionTypes": [
+        "USB",
+        "Dongle"
+      ],
+      "battery": true,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 0,
+      "fwUpdateExtension": [
+        ".exe",
+        "Wireless.exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x00"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0xffa0",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0x0c",
+            "usage": "0x01"
+          }
+        ]
+      }
+    },
+    {
+      "id": "MODEL O Wired",
+      "name": "MODEL O",
+      "slug": "model-o",
+      "routerID": "ModelOWiredSeries",
+      "modelType": 1,
+      "image": {
+        "key": "ModelO",
+        "file": "ModelO3.png",
+        "path": "assets/images/ModelO3.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x320F",
+          "pid": "0x8888"
+        }
+      ],
+      "connectionTypes": [
+        "USB"
+      ],
+      "battery": false,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 0,
+      "fwUpdateExtension": [
+        ".exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xff01",
+            "usage": "0x01"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xff00",
+            "usage": "0xff00"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ModelOProWL",
+      "name": "MODEL O PRO WIRELESS",
+      "slug": "model-o-pro-wireless",
+      "routerID": "ModelOSeries",
+      "modelType": 1,
+      "image": {
+        "key": "ModelOPROWL",
+        "file": "ModelOPROWL3.png",
+        "path": "assets/images/ModelOPROWL3.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x258A",
+          "pid": "0x2015"
+        },
+        {
+          "type": "Dongle",
+          "vid": "0x258A",
+          "pid": "0x2027"
+        }
+      ],
+      "connectionTypes": [
+        "USB",
+        "Dongle"
+      ],
+      "battery": true,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 0,
+      "fwUpdateExtension": [
+        ".exe",
+        "Wireless.exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x00"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0xffa0",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0x0c",
+            "usage": "0x01"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ModelDProWL",
+      "name": "MODEL D PRO WIRELESS",
+      "slug": "model-d-pro-wireless",
+      "routerID": "ModelOSeries",
+      "modelType": 1,
+      "image": {
+        "key": "ModelDPROWL",
+        "file": "ModelDPROWL3.png",
+        "path": "assets/images/ModelDPROWL3.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x258A",
+          "pid": "0x2017"
+        },
+        {
+          "type": "Dongle",
+          "vid": "0x258A",
+          "pid": "0x2029"
+        }
+      ],
+      "connectionTypes": [
+        "USB",
+        "Dongle"
+      ],
+      "battery": true,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 0,
+      "fwUpdateExtension": [
+        ".exe",
+        "Wireless.exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x00"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0xffa0",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0x0c",
+            "usage": "0x01"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ModelO2ProWL",
+      "name": "MODEL O 2 PRO",
+      "slug": "model-o-2-pro",
+      "routerID": "ModelOSeries",
+      "modelType": 1,
+      "image": {
+        "key": "ModelO2PROWL",
+        "file": "ModelO2PROWL3.png",
+        "path": "assets/images/ModelO2PROWL3.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x258A",
+          "pid": "0x2019"
+        },
+        {
+          "type": "Dongle",
+          "vid": "0x258A",
+          "pid": "0x2033"
+        }
+      ],
+      "connectionTypes": [
+        "USB",
+        "Dongle"
+      ],
+      "battery": true,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 2,
+      "fwUpdateExtension": [
+        "\\USB\\FWUpdate.exe",
+        "\\Dongle\\FWUpdate.exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x00"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0xffa0",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0x0c",
+            "usage": "0x01"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ModelD2ProWL",
+      "name": "MODEL D 2 PRO",
+      "slug": "model-d-2-pro",
+      "routerID": "ModelOSeries",
+      "modelType": 1,
+      "image": {
+        "key": "ModelD2PROWL",
+        "file": "ModelD2PROWL3.png",
+        "path": "assets/images/ModelD2PROWL3.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x258A",
+          "pid": "0x201A"
+        },
+        {
+          "type": "Dongle",
+          "vid": "0x258A",
+          "pid": "0x2034"
+        }
+      ],
+      "connectionTypes": [
+        "USB",
+        "Dongle"
+      ],
+      "battery": true,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 2,
+      "fwUpdateExtension": [
+        "\\USB\\FWUpdate.exe",
+        "\\Dongle\\FWUpdate.exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x00"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0xffa0",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0x0c",
+            "usage": "0x01"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ModelO2ProWL_4K/8K",
+      "name": "MODEL O 2 PRO 4k/8kHz Edition",
+      "slug": "model-o-2-pro-4k-8khz-edition",
+      "routerID": "ModelOSeries",
+      "modelType": 1,
+      "image": {
+        "key": "ModelO2PROWL",
+        "file": "ModelO2PROWL3.png",
+        "path": "assets/images/ModelO2PROWL3.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x258A",
+          "pid": "0x201B"
+        },
+        {
+          "type": "Dongle",
+          "vid": "0x258A",
+          "pid": "0x2035"
+        }
+      ],
+      "connectionTypes": [
+        "USB",
+        "Dongle"
+      ],
+      "battery": true,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 3,
+      "fwUpdateExtension": [
+        "\\USB\\FWUpdate.exe",
+        "\\Dongle\\FWUpdate.exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x00"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0xffa0",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0x0c",
+            "usage": "0x01"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ModelD2ProWL_4K/8K",
+      "name": "MODEL D 2 PRO 4k/8kHz Edition",
+      "slug": "model-d-2-pro-4k-8khz-edition",
+      "routerID": "ModelOSeries",
+      "modelType": 1,
+      "image": {
+        "key": "ModelD2PROWL",
+        "file": "ModelD2PROWL3.png",
+        "path": "assets/images/ModelD2PROWL3.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x258A",
+          "pid": "0x201C"
+        },
+        {
+          "type": "Dongle",
+          "vid": "0x258A",
+          "pid": "0x2036"
+        }
+      ],
+      "connectionTypes": [
+        "USB",
+        "Dongle"
+      ],
+      "battery": true,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 3,
+      "fwUpdateExtension": [
+        "\\USB\\FWUpdate.exe",
+        "\\Dongle\\FWUpdate.exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x00"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0xffa0",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0x0c",
+            "usage": "0x01"
+          }
+        ]
+      }
+    },
+    {
+      "id": "MOW2",
+      "name": "Model O 2 Wireless",
+      "slug": "model-o-2-wireless",
+      "routerID": "ModelOV2Series",
+      "modelType": 1,
+      "image": {
+        "key": "MOW2",
+        "file": "MOW23.png",
+        "path": "assets/images/MOW23.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x093A",
+          "pid": "0x822A"
+        },
+        {
+          "type": "Bluetooth",
+          "vid": "0x093A",
+          "pid": "0x822B"
+        },
+        {
+          "type": "Dongle",
+          "vid": "0x093A",
+          "pid": "0x822D"
+        }
+      ],
+      "connectionTypes": [
+        "USB",
+        "Bluetooth",
+        "Dongle"
+      ],
+      "battery": true,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 1,
+      "fwUpdateExtension": [
+        "\\USB\\FWUpdate.exe",
+        "\\Dongle\\FWUpdate.exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xff00",
+            "usage": "0x01"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xff00",
+            "usage": "0xff00"
+          }
+        ]
+      }
+    },
+    {
+      "id": "MOWired2",
+      "name": "Model O 2 Wired",
+      "slug": "model-o-2-wired",
+      "routerID": "ModelOV2WiredSeries",
+      "modelType": 1,
+      "image": {
+        "key": "MOWired2",
+        "file": "MOWired23.png",
+        "path": "assets/images/MOWired23.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x320F",
+          "pid": "0x823A"
+        }
+      ],
+      "connectionTypes": [
+        "USB"
+      ],
+      "battery": false,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 0,
+      "fwUpdateExtension": [
+        ".exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xff01",
+            "usage": "0x01"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xff00",
+            "usage": "0xff00"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SeriesOneProWL",
+      "name": "SERIES ONE PRO WIRELESS",
+      "slug": "series-one-pro-wireless",
+      "routerID": "ModelOSeries",
+      "modelType": 1,
+      "image": {
+        "key": "SeriesOneProWL",
+        "file": "SeriesOneProWL3.png",
+        "path": "assets/images/SeriesOneProWL3.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x258A",
+          "pid": "0x2018"
+        },
+        {
+          "type": "Dongle",
+          "vid": "0x258A",
+          "pid": "0x2031"
+        }
+      ],
+      "connectionTypes": [
+        "USB",
+        "Dongle"
+      ],
+      "battery": true,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 0,
+      "fwUpdateExtension": [
+        ".exe",
+        "Wireless.exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x00"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xffff",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0xffa0",
+            "usage": "0x01"
+          },
+          {
+            "usagepage": "0x0c",
+            "usage": "0x01"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ModeIWireless",
+      "name": "Model I 2 Wireless",
+      "slug": "model-i-2-wireless",
+      "routerID": "ModelOV2Series",
+      "modelType": 1,
+      "image": {
+        "key": "MI2Wireless",
+        "file": "MI2Wireless3.png",
+        "path": "assets/images/MI2Wireless3.png"
+      },
+      "connections": [
+        {
+          "type": "USB",
+          "vid": "0x093A",
+          "pid": "0x821A"
+        },
+        {
+          "type": "Bluetooth",
+          "vid": "0x093A",
+          "pid": "0x821B"
+        },
+        {
+          "type": "Dongle",
+          "vid": "0x093A",
+          "pid": "0x821D"
+        }
+      ],
+      "connectionTypes": [
+        "USB",
+        "Bluetooth",
+        "Dongle"
+      ],
+      "battery": true,
+      "layerMaxNumber": null,
+      "sideLightSwitch": null,
+      "pairingFlag": 1,
+      "fwUpdateExtension": [
+        "\\USB\\FWUpdate.exe",
+        "\\Dongle\\FWUpdate.exe"
+      ],
+      "hid": {
+        "set": [
+          {
+            "usagepage": "0xff00",
+            "usage": "0x01"
+          }
+        ],
+        "get": [
+          {
+            "usagepage": "0xff00",
+            "usage": "0xff00"
+          }
+        ]
+      }
+    }
+  ]
+}
