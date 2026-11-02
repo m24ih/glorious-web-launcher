@@ -17,16 +17,28 @@ export interface FirmwareInfo {
   display: string;
 }
 
+export interface DpiStage {
+  value: number;
+  color?: string;
+}
+
 export interface SettingsView {
   active_profile: number;
   dpi_stage_count: number;
   dpi_stages: number[];
+  dpi_colors?: string[];
   active_dpi_stage: number;
   polling_rate: number;
   debounce_ms: number;
   lod: number;
   sleep_seconds: number | null;
-  lighting?: LightingSettings;
+  lighting?: {
+    effect: EffectId | number;
+    effect_name?: string;
+    brightness: number;
+    rate: number;
+    color: [number, number, number];
+  } | null;
 }
 
 export interface LightingSettings {
@@ -38,7 +50,7 @@ export interface LightingSettings {
 
 export interface SettingsDraft {
   profile: number;
-  dpi_stages: { value: number }[];
+  dpi_stages: DpiStage[];
   active_dpi_stage: number;
   polling_rate: number;
   debounce_ms: number;
@@ -98,7 +110,8 @@ export type EffectName = RgbEffectName;
 export interface RgbPatch {
   brightness: number;
   wireless_brightness?: number;
-  effect: RgbEffectName;
+  effect: EffectId | RgbEffectName | number;
+  effect_name?: string;
   rate: number;
   color: [number, number, number];
 }
@@ -106,6 +119,7 @@ export interface RgbPatch {
 export interface SettingsPatch {
   profile?: number;
   dpi_stages?: number[];
+  dpi_colors?: string[];
   active_dpi_stage?: number;
   polling_rate?: number;
   debounce_ms?: number;
@@ -146,22 +160,6 @@ export type ViewId =
   | 'lighting'
   | 'macro'
   | 'firmware';
-
-export interface SettingsDraft {
-  profile: number;
-  dpi_stages: { value: number }[];
-  active_dpi_stage: number;
-  polling_rate: number;
-  debounce_ms: number;
-  lod: number;
-  sleep_seconds: number | 'off';
-  lighting: {
-    effect: number;
-    brightness: number;
-    rate: number;
-    color: string;
-  };
-}
 
 export type TabId = Exclude<ViewId, 'macro'>;
 

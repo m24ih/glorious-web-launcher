@@ -14,7 +14,6 @@
     SettingsPatch,
     TabId,
     SettingsDraft,
-    RgbEffectName,
   } from './lib/types';
   import {
     fetchDevices,
@@ -23,6 +22,7 @@
   } from './lib/api';
   import {
     DEFAULT_PIN_ACTIONS,
+    DPI_COLORS,
     draftFromDevice,
     hexToRgb,
     LIGHTING_EFFECTS,
@@ -37,6 +37,7 @@
   let selectedPin = $state<PinId | null>('left');
   let mappings = $state<PinAction[]>(DEFAULT_PIN_ACTIONS);
   let draft = $state<SettingsDraft>(draftFromDevice(null));
+  let hasUserModified = $state<boolean>(false);
   let applying = $state<boolean>(false);
   let toastMessage = $state<string | null>(null);
 
@@ -60,10 +61,12 @@
   }
 
   function onDraftChange(updater: (draft: SettingsDraft) => SettingsDraft) {
+    hasUserModified = true;
     draft = updater(draft);
   }
 
   function onReset() {
+    hasUserModified = false;
     draft = draftFromDevice(device);
     mappings = DEFAULT_PIN_ACTIONS;
     showToast('Reverted settings to defaults');
@@ -73,13 +76,12 @@
     if (!device || applying) return;
     applying = true;
     try {
-      const effectSpec = LIGHTING_EFFECTS.find((e) => e.id === draft.lighting.effect);
-      const rgbEffect: RgbEffectName = (effectSpec?.name as RgbEffectName) ?? 'glorious';
       const rgbColor = hexToRgb(draft.lighting.color);
 
       const patch: SettingsPatch = {
         profile: activeProfile,
         dpi_stages: draft.dpi_stages.map((s) => s.value),
+        dpi_colors: draft.dpi_stages.map((s, i) => s.color || DPI_COLORS[i % DPI_COLORS.length]),
         active_dpi_stage: draft.active_dpi_stage,
         polling_rate: draft.polling_rate,
         debounce_ms: draft.debounce_ms,
@@ -87,7 +89,7 @@
         sleep_seconds: draft.sleep_seconds === 'off' ? 0 : draft.sleep_seconds,
         rgb: {
           brightness: draft.lighting.brightness,
-          effect: rgbEffect,
+          effect: draft.lighting.effect,
           rate: draft.lighting.rate,
           color: rgbColor,
         },
@@ -97,6 +99,7 @@
       if (res?.device) {
         device = res.device;
         draft = draftFromDevice(res.device);
+        hasUserModified = false;
       }
       showToast('Settings applied to mouse');
     } catch (e: any) {
@@ -114,7 +117,9 @@
         if (list.devices.length > 0) {
           const connected = list.devices.find((d) => d.connected) ?? list.devices[0];
           device = connected;
-          draft = draftFromDevice(connected);
+          if (!hasUserModified) {
+            draft = draftFromDevice(connected);
+          }
           if (connected.settings?.active_profile) {
             activeProfile = connected.settings.active_profile;
           }
@@ -134,14 +139,16 @@
               : null;
             const chosen = updated ?? event.devices.find((d) => d.connected) ?? event.devices[0];
             device = chosen;
-            if (!device || !updated) {
+            if (!hasUserModified) {
               draft = draftFromDevice(chosen);
             }
           }
         } else if (event.type === 'applied') {
           if (device && event.slug === device.slug) {
             device = event.device;
-            draft = draftFromDevice(event.device);
+            if (!hasUserModified) {
+              draft = draftFromDevice(event.device);
+            }
           }
           showToast('Settings synced from hardware');
         }
@@ -168,6 +175,7 @@
     onTabChange={(tab) => (activeTab = tab)}
     onProfileChange={(n) => {
       activeProfile = n;
+      hasUserModified = true;
       draft = { ...draft, profile: n };
     }}
     serviceVersion={LAUNCHER_VERSION}

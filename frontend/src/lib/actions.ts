@@ -5,6 +5,7 @@ import type {
   ActionCategory,
   DockAction,
   DockCategory,
+  DpiStage,
   EffectId,
   EffectName,
   PinAction,
@@ -302,6 +303,15 @@ export const SLEEP_OPTIONS = [...SLEEP_PRESETS, { label: 'Off', seconds: 'off' a
 
 /* ── Small helpers ──────────────────────────────────────────────────────── */
 
+export function rgbToHex(rgb: [number, number, number] | number[]): string {
+  const [r = 0, g = 0, b = 0] = rgb;
+  const toHex = (n: number) =>
+    Math.min(255, Math.max(0, Math.round(n)))
+      .toString(16)
+      .padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
 export function hexToRgb(hex: string): [number, number, number] {
   const clean = hex.replace('#', '');
   const full =
@@ -324,8 +334,17 @@ export function rangeFill(v: number, min: number, max: number): string {
   return `${(clamp(v, min, max) / (max - min)) * 100}%`;
 }
 
-/** Which DPI color badge a stage gets (Keychron-style rainbow). */
-export const DPI_COLORS = ['#2dff6a', '#2d8cff', '#ffb800', '#ff5c5c', '#c12dff'];
+/** Which DPI color badge a stage gets (Glorious CORE preset colors). */
+export const DPI_COLORS = [
+  '#FFFF00',
+  '#0000FF',
+  '#FF0000',
+  '#00FF00',
+  '#00FFFF',
+  '#FF00FF',
+  '#FF8000',
+  '#C12DFF',
+];
 
 export function dpiColor(index: number): string {
   return DPI_COLORS[index % DPI_COLORS.length];
@@ -334,22 +353,47 @@ export function dpiColor(index: number): string {
 /** Seed a settings draft from read-back hardware values. */
 export function draftFromDevice(device?: { settings?: SettingsView | null } | null): SettingsDraft {
   const settings = device?.settings;
-  const stages =
-    settings && settings.dpi_stages.length > 0
-      ? settings.dpi_stages
-      : [400, 800, 1600, 3200];
-  const padded = [...stages];
-  while (padded.length < 4) padded.push(Math.min(30000, Math.max(100, padded[padded.length - 1] * 2)));
+
+  let stages: DpiStage[];
+  if (settings && settings.dpi_stages && settings.dpi_stages.length > 0) {
+    stages = settings.dpi_stages.slice(0, 8).map((value, i) => ({
+      value,
+      color: settings.dpi_colors?.[i] || DPI_COLORS[i % DPI_COLORS.length],
+    }));
+  } else {
+    stages = [
+      { value: 400, color: DPI_COLORS[0] },
+      { value: 800, color: DPI_COLORS[1] },
+      { value: 1600, color: DPI_COLORS[2] },
+      { value: 3200, color: DPI_COLORS[3] },
+    ];
+  }
+
+  let lighting = {
+    effect: 1,
+    brightness: 100,
+    rate: 50,
+    color: '#ffb800',
+  };
+
+  if (settings?.lighting) {
+    lighting = {
+      effect: settings.lighting.effect as EffectId,
+      brightness: settings.lighting.brightness,
+      rate: settings.lighting.rate,
+      color: rgbToHex(settings.lighting.color),
+    };
+  }
 
   return {
     profile: settings?.active_profile ?? 1,
-    dpi_stages: padded.slice(0, 8).map((value) => ({ value })),
+    dpi_stages: stages,
     active_dpi_stage: settings?.active_dpi_stage ?? 1,
     polling_rate: settings?.polling_rate ?? 1000,
     debounce_ms: settings?.debounce_ms ?? 10,
     lod: settings?.lod ?? 1,
     sleep_seconds: settings?.sleep_seconds ?? 'off',
-    lighting: settings?.lighting ?? { effect: 1, brightness: 100, rate: 50, color: '#ffb800' },
+    lighting,
   };
 }
 

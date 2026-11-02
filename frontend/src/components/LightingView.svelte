@@ -10,8 +10,14 @@
   let { draft, onChange }: Props = $props();
 
   const currentEffect = $derived(
-    LIGHTING_EFFECTS.find((e) => e.id === draft.lighting.effect) ?? LIGHTING_EFFECTS[0]
+    LIGHTING_EFFECTS.find(
+      (e) => e.id === draft.lighting.effect || e.name === (draft.lighting.effect as any)
+    ) ??
+      LIGHTING_EFFECTS.find((e) => e.id === 0) ??
+      LIGHTING_EFFECTS[0]
   );
+
+  const isOff = $derived(currentEffect.id === 0 || (currentEffect.name as string) === 'off');
 
   function setEffect(effectId: number) {
     onChange((prev) => ({
@@ -66,11 +72,14 @@
 
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {#each LIGHTING_EFFECTS as effect (effect.id)}
-          {@const isSelected = draft.lighting.effect === effect.id}
+          {@const isSelected =
+            draft.lighting.effect === effect.id ||
+            (draft.lighting.effect as any) === effect.name ||
+            (effect.id === 0 && ((draft.lighting.effect as any) === 'off' || draft.lighting.effect === 0))}
           <button
             type="button"
             class="flex flex-col rounded-xl border p-3.5 text-left transition {isSelected
-              ? 'border-glorious/80 bg-zinc-900 shadow-[0_0_16px_rgba(255,184,0,0.18)]'
+              ? 'border-glorious bg-zinc-900 ring-2 ring-glorious/60 shadow-[0_0_16px_rgba(255,184,0,0.25)]'
               : 'border-edge bg-canvas/50 hover:border-edge-bright hover:bg-card-hover'}"
             onclick={() => setEffect(effect.id)}
           >
@@ -82,7 +91,13 @@
             </div>
             <div
               class="h-2 w-full rounded-full border border-edge/60"
-              style={effect.preview ? `background: ${effect.preview}` : effect.colored ? `background: ${draft.lighting.color}` : 'background: #2a2a33'}
+              style={effect.id === 0
+                ? 'background: #18181b;'
+                : effect.preview
+                  ? `background: ${effect.preview}`
+                  : effect.colored
+                    ? `background: ${draft.lighting.color}`
+                    : 'background: #2a2a33'}
             ></div>
           </button>
         {/each}
@@ -90,16 +105,18 @@
     </section>
 
     <!-- Controls Row: Brightness & Speed -->
-    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 {isOff ? 'opacity-40 pointer-events-none' : ''}">
       <!-- Brightness Slider -->
       <section class="rounded-2xl border border-edge bg-card p-6">
         <div class="mb-4 flex items-center justify-between">
           <div>
             <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">BRIGHTNESS</h3>
-            <p class="mt-1 text-xs text-ink-dim">LED luminance output</p>
+            <p class="mt-1 text-xs text-ink-dim">
+              {isOff ? 'Disabled (Lighting is Off)' : 'LED luminance output'}
+            </p>
           </div>
           <span class="rounded-full border border-edge bg-canvas px-3 py-1 text-xs font-bold text-glorious">
-            {draft.lighting.brightness}%
+            {isOff ? '0%' : `${draft.lighting.brightness}%`}
           </span>
         </div>
 
@@ -108,6 +125,7 @@
           min="0"
           max="100"
           step="1"
+          disabled={isOff}
           value={draft.lighting.brightness}
           style="--fill: {draft.lighting.brightness}%"
           oninput={(e) => setBrightness(parseInt(e.currentTarget.value, 10))}
@@ -124,7 +142,9 @@
         <div class="mb-4 flex items-center justify-between">
           <div>
             <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">ANIMATION SPEED</h3>
-            <p class="mt-1 text-xs text-ink-dim">Cycle and transition frequency</p>
+            <p class="mt-1 text-xs text-ink-dim">
+              {isOff ? 'Disabled (Lighting is Off)' : 'Cycle and transition frequency'}
+            </p>
           </div>
           <span class="rounded-full border border-edge bg-canvas px-3 py-1 text-xs font-bold text-glorious">
             {draft.lighting.rate}%
@@ -136,6 +156,7 @@
           min="0"
           max="100"
           step="1"
+          disabled={isOff}
           value={draft.lighting.rate}
           style="--fill: {draft.lighting.rate}%"
           oninput={(e) => setRate(parseInt(e.currentTarget.value, 10))}
@@ -148,8 +169,8 @@
       </section>
     </div>
 
-    <!-- Color Picker (when effect uses color) -->
-    {#if currentEffect.colored}
+    <!-- Color Picker (when effect uses color and lighting is not off) -->
+    {#if currentEffect.colored && !isOff}
       <section class="rounded-2xl border border-edge bg-card p-6">
         <div class="mb-4">
           <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">COLOR SELECTION</h3>
