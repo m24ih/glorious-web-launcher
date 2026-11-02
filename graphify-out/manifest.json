@@ -1,0 +1,80 @@
+{
+  "data/glorious_devices.json": {
+    "mtime": 1793625721.5664244,
+    "seen": 1793626010.8114407,
+    "ast_hash": "050f883a23c024d79fe6a68456ba724a",
+    "semantic_hash": "050f883a23c024d79fe6a68456ba724a"
+  },
+  "scripts/extract_devices.py": {
+    "mtime": 1793625721.498486,
+    "seen": 1793626010.8114464,
+    "ast_hash": "1f07aaf6d5692c58ccde0f505c108100",
+    "semantic_hash": "1f07aaf6d5692c58ccde0f505c108100"
+  },
+  "crates/glorious-service/Cargo.toml": {
+    "mtime": 1793626649.7538333,
+    "seen": 1793626877.9597158,
+    "ast_hash": "a5054ba64b61a1938175912dafe50080",
+    "semantic_hash": "a5054ba64b61a1938175912dafe50080"
+  },
+  "crates/glorious-service/src/api.rs": {
+    "mtime": 1793626834.668172,
+    "seen": 1793626877.959719,
+    "ast_hash": "ecd6048b6b2e0cc7fdab309a7c7d0322",
+    "semantic_hash": "ecd6048b6b2e0cc7fdab309a7c7d0322"
+  },
+  "crates/glorious-service/src/devices.rs": {
+    "mtime": 1793626818.874142,
+    "seen": 1793626877.9597204,
+    "ast_hash": "b2211a559b1909002cc3cb1cea34b0dd",
+    "semantic_hash": "b2211a559b1909002cc3cb1cea34b0dd"
+  },
+  "crates/glorious-service/src/hid/mod.rs": {
+    "mtime": 1793626818.875142,
+    "seen": 1793626877.9597213,
+    "ast_hash": "ea09e9e7a1ad2708cad7d94a3ad24637",
+    "semantic_hash": "ea09e9e7a1ad2708cad7d94a3ad24637"
+  },
+  "crates/glorious-service/src/hid/pixart.rs": {
+    "mtime": 1793626506.7015917,
+    "seen": 1793626877.959722,
+    "ast_hash": "979a43f7b2a8b2ad911bac4947f3404a",
+    "semantic_hash": "979a43f7b2a8b2ad911bac4947f3404a"
+  },
+  "crates/glorious-service/src/hid/sinowealth.rs": {
+    "mtime": 1793626818.879142,
+    "seen": 1793626877.9597228,
+    "ast_hash": "2c5e650104883ca11cc4720d0af84835",
+    "semantic_hash": "2c5e650104883ca11cc4720d0af84835"
+  },
+  "crates/glorious-service/src/lib.rs": {
+    "mtime": 1793626818.879142,
+    "seen": 1793626877.9597235,
+    "ast_hash": "a90cde60ee8bc8c5cc8bda04554f53b5",
+    "semantic_hash": "a90cde60ee8bc8c5cc8bda04554f53b5"
+  },
+  "crates/glorious-service/src/main.rs": {
+    "mtime": 1793626818.885142,
+    "seen": 1793626877.959724,
+    "ast_hash": "6bead57aca19cb092818c59389d9d5b9",
+    "semantic_hash": "6bead57aca19cb092818c59389d9d5b9"
+  },
+  "crates/glorious-service/src/manager.rs": {
+    "mtime": 1793626818.881142,
+    "seen": 1793626877.9597244,
+    "ast_hash": "ea309a315dfe27a0f3b3ed9564b3314d",
+    "semantic_hash": "ea309a315dfe27a0f3b3ed9564b3314d"
+  },
+  "crates/glorious-service/src/types.rs": {
+    "mtime": 1793626818.882142,
+    "seen": 1793626877.9597256,
+    "ast_hash": "a6d7e62e890a4f9c3d2461129c086455",
+    "semantic_hash": "a6d7e62e890a4f9c3d2461129c086455"
+  },
+  "crates/glorious-service/src/ws.rs": {
+    "mtime": 1793626834.668172,
+    "seen": 1793626877.9597263,
+    "ast_hash": "2632bb037f64c4bdfaf5f52443fdc342",
+    "semantic_hash": "2632bb037f64c4bdfaf5f52443fdc342"
+  }
+}

@@ -1,0 +1,17 @@
+# Glorious gaming mice on Linux. `uaccess` grants the active local session
+# read/write access to the vendor HID collection (/dev/hidraw*).
+#
+# 258a: Sinowealth (Model O / Model D wired + 2.4 GHz dongles)
+# 093a: PixArt (Model I 2 / Model O 2 wireless)
+# 320f: wired Model O / Model O 2
+# 22d4: Model I (wired)
+
+KERNEL=="hidraw*", ATTRS{idVendor}=="258a", MODE="0660", TAG+="uaccess"
+KERNEL=="hidraw*", ATTRS{idVendor}=="093a", MODE="0660", TAG+="uaccess"
+KERNEL=="hidraw*", ATTRS{idVendor}=="320f", MODE="0660", TAG+="uaccess"
+KERNEL=="hidraw*", ATTRS{idVendor}=="22d4", MODE="0660", TAG+="uaccess"
+
+SUBSYSTEM=="usb", ATTRS{idVendor}=="258a", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="093a", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="320f", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="22d4", MODE="0660", TAG+="uaccess"
