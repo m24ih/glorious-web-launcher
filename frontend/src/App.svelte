@@ -13,6 +13,7 @@
     ActionCategory,
     SettingsPatch,
     TabId,
+    LightingSettings,
     SettingsDraft,
   } from './lib/types';
   import {
@@ -63,6 +64,35 @@
   function onDraftChange(updater: (draft: SettingsDraft) => SettingsDraft) {
     hasUserModified = true;
     draft = updater(draft);
+  }
+
+  async function onLightingLivePreview(lighting: LightingSettings) {
+    if (!device) return;
+    const rgbColor = hexToRgb(lighting.color);
+    if (device.settings) {
+      device.settings = {
+        ...device.settings,
+        lighting: {
+          effect: lighting.effect,
+          brightness: lighting.brightness,
+          rate: lighting.rate,
+          color: rgbColor,
+        },
+      };
+    }
+    try {
+      const patch: SettingsPatch = {
+        rgb: {
+          effect: lighting.effect,
+          brightness: lighting.brightness,
+          rate: lighting.rate,
+          color: rgbColor,
+        },
+      };
+      await applySettings(device.slug, patch);
+    } catch (e) {
+      console.warn('Live lighting preview failed:', e);
+    }
   }
 
   function onReset() {
@@ -237,9 +267,9 @@
 
       <!-- Tab Content Area -->
       {#if activeTab === 'pointer'}
-        <PointerView {draft} onChange={onDraftChange} />
+        <PointerView {device} {draft} onChange={onDraftChange} />
       {:else if activeTab === 'lighting'}
-        <LightingView {draft} onChange={onDraftChange} />
+        <LightingView {draft} onChange={onDraftChange} onLivePreview={onLightingLivePreview} />
       {:else if activeTab === 'firmware'}
         <FirmwareView {device} />
       {/if}

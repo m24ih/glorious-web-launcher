@@ -1,14 +1,18 @@
 <script lang="ts">
   import { Plus, Trash2 } from 'lucide-svelte';
   import type { SettingsDraft } from '../lib/types';
+  import type { DeviceView } from '../lib/types';
   import { DPI_COLORS, clamp } from '../lib/actions';
 
   interface Props {
     draft: SettingsDraft;
     onChange: (updater: (draft: SettingsDraft) => SettingsDraft) => void;
+    device?: DeviceView | null;
   }
 
-  let { draft, onChange }: Props = $props();
+  let { draft, onChange, device = null }: Props = $props();
+
+  const maxStages = $derived((device?.slug?.startsWith('model-o') || device?.slug?.startsWith('model-d')) ? 6 : 8);
 
   const POLLING_RATES = [125, 250, 500, 1000] as const;
   const LOD_OPTIONS = [
@@ -34,7 +38,7 @@
   }
 
   function addStage() {
-    if (draft.dpi_stages.length >= 8) return;
+    if (draft.dpi_stages.length >= maxStages) return;
     onChange((prev) => {
       const nextIdx = prev.dpi_stages.length;
       const lastStage = prev.dpi_stages[nextIdx - 1];
@@ -97,7 +101,7 @@
           <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">DPI STAGES</h3>
           <span class="text-xs text-ink-dim">Active Stage: {draft.active_dpi_stage} (of {draft.dpi_stages.length})</span>
         </div>
-        {#if draft.dpi_stages.length < 8}
+        {#if draft.dpi_stages.length < maxStages}
           <button
             type="button"
             onclick={addStage}
@@ -106,6 +110,8 @@
             <Plus size={14} />
             <span>Add Stage</span>
           </button>
+        {:else}
+          <span class="rounded-full border border-edge bg-zinc-900 px-3 py-1 text-[11px] font-semibold text-ink-dim">Max {maxStages} Stages</span>
         {/if}
       </div>
 
@@ -218,7 +224,7 @@
           </div>
         {/each}
 
-        {#if draft.dpi_stages.length < 8}
+        {#if draft.dpi_stages.length < maxStages}
           <button
             type="button"
             onclick={addStage}
@@ -227,7 +233,7 @@
             <div class="flex h-8 w-8 items-center justify-center rounded-full border border-edge bg-card">
               <Plus size={16} />
             </div>
-            <span class="text-xs font-bold">Add Stage ({draft.dpi_stages.length}/8)</span>
+            <span class="text-xs font-bold">Add Stage ({draft.dpi_stages.length}/{maxStages})</span>
           </button>
         {/if}
       </div>
