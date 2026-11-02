@@ -107,7 +107,7 @@ impl DeviceManager {
 
         // Known model, not currently present: return the first record so the UI
         // can still render name, slug and image.
-        let mut view = disconnected_view(entries[0]);
+        let mut view = self.disconnected_view(entries[0]);
         view.settings = Some(self.profiles.get_current_settings_view(slug));
         Ok(view)
     }
@@ -195,6 +195,12 @@ impl DeviceManager {
         let entry = &detected.entry;
         let mut view = base_view(entry, Some(&detected.endpoint), Some(&detected.connection));
 
+        let mut profile_map = std::collections::BTreeMap::new();
+        for p_id in 1..=3 {
+            profile_map.insert(p_id, self.profiles.get_settings_view(&entry.slug, p_id));
+        }
+        view.profiles = Some(profile_map);
+
         if entry.protocol() != ProtocolFamily::Sinowealth {
             view.supported = false;
             view.status = DeviceStatusView::Unsupported;
@@ -278,6 +284,7 @@ impl DeviceManager {
         }
 
         view.settings = Some(settings);
+
         view
     }
 
@@ -302,6 +309,16 @@ impl DeviceManager {
                 None
             }
         }
+    }
+
+    fn disconnected_view(&self, entry: &DeviceEntry) -> DeviceView {
+        let mut view = base_view(entry, None, None);
+        let mut profile_map = std::collections::BTreeMap::new();
+        for p_id in 1..=3 {
+            profile_map.insert(p_id, self.profiles.get_settings_view(&entry.slug, p_id));
+        }
+        view.profiles = Some(profile_map);
+        view
     }
 }
 
@@ -359,13 +376,10 @@ fn base_view(
         battery: None,
         firmware: None,
         settings: None,
+        profiles: None,
         error: None,
         last_seen: endpoint.map(|_| unix_seconds()),
     }
-}
-
-fn disconnected_view(entry: &DeviceEntry) -> DeviceView {
-    base_view(entry, None, None)
 }
 
 fn unix_seconds() -> u64 {
@@ -476,5 +490,10 @@ mod tests {
         assert!(!settings.dpi_stages.is_empty());
         assert!(!settings.dpi_colors.is_empty());
         assert!(settings.lighting.is_some());
+        assert!(view.profiles.is_some());
+        let profiles = view.profiles.unwrap();
+        assert!(profiles.contains_key(&1));
+        assert!(profiles.contains_key(&2));
+        assert!(profiles.contains_key(&3));
     }
 }

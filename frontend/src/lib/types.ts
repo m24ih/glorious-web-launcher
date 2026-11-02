@@ -84,6 +84,7 @@ export interface DeviceView {
   battery?: BatteryInfo;
   firmware?: FirmwareInfo;
   settings?: SettingsView;
+  profiles?: Record<number, SettingsView>;
   error?: string;
   last_seen?: number;
 }
@@ -179,6 +180,7 @@ export type ViewId =
 export type TabId = Exclude<ViewId, 'macro'>;
 
 export type ActionCategory =
+  | 'mousekeys'
   | 'basickeys'
   | 'shortcuts'
   | 'multimedia'

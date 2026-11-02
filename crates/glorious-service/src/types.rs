@@ -385,13 +385,13 @@ impl SettingsPatch {
 
         if let Some(buttons) = &self.buttons {
             for b in buttons {
-                if b.button_id == 0 || b.button_id > 16 {
-                    return Err(format!("button_id must be 1-16, got {}", b.button_id));
+                if b.button_id == 0 || b.button_id > 32 {
+                    return Err(format!("button_id must be 1-32, got {}", b.button_id));
                 }
                 match &b.action {
                     ButtonAction::Mouse { button } => {
-                        if *button == 0 || *button > 8 {
-                            return Err(format!("mouse button must be 1-8, got {button}"));
+                        if *button == 0 || (*button > 8 && *button != 0x10 && *button != 0x11) {
+                            return Err(format!("mouse button must be 1-8 or scroll, got {button}"));
                         }
                     }
                     ButtonAction::Keyboard { key_code, .. } => {
@@ -463,6 +463,8 @@ pub struct DeviceView {
     pub firmware: Option<FirmwareInfo>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub settings: Option<SettingsView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profiles: Option<std::collections::BTreeMap<u8, SettingsView>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -622,5 +624,49 @@ mod tests {
             ..Default::default()
         };
         assert!(bad_key.validate().is_err());
+
+        for accepted_id in [16, 17, 20, 32] {
+            let good = SettingsPatch {
+                buttons: Some(vec![ButtonBinding {
+                    pin: "btn".into(),
+                    button_id: accepted_id,
+                    action: ButtonAction::Disabled,
+                }]),
+                ..Default::default()
+            };
+            assert!(good.validate().is_ok(), "button_id {accepted_id} should be accepted");
+        }
+
+        let bad_button_33 = SettingsPatch {
+            buttons: Some(vec![ButtonBinding {
+                pin: "btn".into(),
+                button_id: 33,
+                action: ButtonAction::Disabled,
+            }]),
+            ..Default::default()
+        };
+        assert!(bad_button_33.validate().is_err());
+
+        for accepted_mouse in [0x10, 0x11] {
+            let good_mouse = SettingsPatch {
+                buttons: Some(vec![ButtonBinding {
+                    pin: "btn".into(),
+                    button_id: 1,
+                    action: ButtonAction::Mouse { button: accepted_mouse },
+                }]),
+                ..Default::default()
+            };
+            assert!(good_mouse.validate().is_ok(), "mouse button 0x{:02X} should be accepted", accepted_mouse);
+        }
+
+        let bad_mouse_9 = SettingsPatch {
+            buttons: Some(vec![ButtonBinding {
+                pin: "btn".into(),
+                button_id: 1,
+                action: ButtonAction::Mouse { button: 9 },
+            }]),
+            ..Default::default()
+        };
+        assert!(bad_mouse_9.validate().is_err());
     }
 }

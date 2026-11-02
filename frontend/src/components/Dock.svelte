@@ -10,7 +10,7 @@
 
   let { selectedPin, mappings, onAssign }: Props = $props();
 
-  let activeCategory = $state<ActionCategory>('basickeys');
+  let activeCategory = $state<ActionCategory>('mousekeys');
 
   const currentMapping = $derived(
     selectedPin ? mappings.find((m) => m.pin === selectedPin) : null

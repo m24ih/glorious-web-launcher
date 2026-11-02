@@ -111,14 +111,14 @@ export const PIN_SPECS: PinSpec[] = [
 ];
 
 export const DEFAULT_MAPPINGS: PinAction[] = [
-  { pin: 'left', category: 'basickeys', action: 'Left Click' },
-  { pin: 'right', category: 'basickeys', action: 'Right Click' },
-  { pin: 'middle', category: 'basickeys', action: 'Middle Click' },
-  { pin: 'scroll_up', category: 'basickeys', action: 'Scroll Up' },
-  { pin: 'scroll_down', category: 'basickeys', action: 'Scroll Down' },
+  { pin: 'left', category: 'mousekeys', action: 'Left Click' },
+  { pin: 'right', category: 'mousekeys', action: 'Right Click' },
+  { pin: 'middle', category: 'mousekeys', action: 'Middle Click' },
+  { pin: 'scroll_up', category: 'mousekeys', action: 'Scroll Up' },
+  { pin: 'scroll_down', category: 'mousekeys', action: 'Scroll Down' },
   { pin: 'dpi', category: 'dpi', action: 'DPI Loop' },
-  { pin: 'forward', category: 'basickeys', action: 'Forward' },
-  { pin: 'backward', category: 'basickeys', action: 'Backward' },
+  { pin: 'forward', category: 'mousekeys', action: 'Forward' },
+  { pin: 'backward', category: 'mousekeys', action: 'Backward' },
 ];
 
 export const DEFAULT_PIN_ACTIONS = DEFAULT_MAPPINGS;
@@ -130,6 +130,7 @@ export const PIN_LABELS: Record<PinId, string> = Object.fromEntries(
 /* ── Dock ───────────────────────────────────────────────────────────────── */
 
 export const DOCK_CATEGORIES: DockCategory[] = [
+  { id: 'mousekeys', label: 'Mouse Keys' },
   { id: 'basickeys', label: 'Basic Keys' },
   { id: 'shortcuts', label: 'Shortcut Keys' },
   { id: 'multimedia', label: 'Multimedia Keys' },
@@ -141,6 +142,16 @@ export const DOCK_CATEGORIES: DockCategory[] = [
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 export const DOCK_ACTIONS: Record<ActionCategory, DockAction[]> = {
+  mousekeys: [
+    { id: 'mouse:left', label: 'Left Click' },
+    { id: 'mouse:right', label: 'Right Click' },
+    { id: 'mouse:middle', label: 'Middle Click' },
+    { id: 'mouse:forward', label: 'Forward' },
+    { id: 'mouse:backward', label: 'Backward' },
+    { id: 'mouse:scroll_up', label: 'Scroll Up' },
+    { id: 'mouse:scroll_down', label: 'Scroll Down' },
+    { id: 'dpi:loop', label: 'DPI Loop' },
+  ],
   basickeys: [
     ...ALPHABET.map((k) => ({ id: `key:${k}`, label: k })),
     { id: 'key:esc', label: 'Esc' },
@@ -482,23 +493,25 @@ export const SPECIAL_KEY_CODES: Record<string, { key_code: number; modifiers?: n
 export function pinActionToButtonAction(actionStr: string, category?: ActionCategory): ButtonAction {
   const norm = actionStr.trim();
 
-  // Basic mouse actions
-  if (norm === 'Left Click') return { type: 'mouse', button: 1 };
-  if (norm === 'Right Click') return { type: 'mouse', button: 2 };
-  if (norm === 'Middle Click') return { type: 'mouse', button: 3 };
-  if (norm === 'Backward') return { type: 'mouse', button: 4 };
-  if (norm === 'Forward') return { type: 'mouse', button: 5 };
-  if (norm === 'Scroll Up') return { type: 'mouse', button: 0x10 };
-  if (norm === 'Scroll Down') return { type: 'mouse', button: 0x11 };
+  // Mouse keys category & basic mouse actions
+  if (norm === 'Left Click' || norm === 'mouse:left') return { type: 'mouse', button: 1 };
+  if (norm === 'Right Click' || norm === 'mouse:right') return { type: 'mouse', button: 2 };
+  if (norm === 'Middle Click' || norm === 'mouse:middle') return { type: 'mouse', button: 3 };
+  if (norm === 'Backward' || norm === 'mouse:backward') return { type: 'mouse', button: 4 };
+  if (norm === 'Forward' || norm === 'mouse:forward') return { type: 'mouse', button: 5 };
+  if (norm === 'Scroll Up' || norm === 'mouse:scroll_up') return { type: 'mouse', button: 0x10 };
+  if (norm === 'Scroll Down' || norm === 'mouse:scroll_down') return { type: 'mouse', button: 0x11 };
 
   // Disabled
-  if (norm === 'Disabled' || category === 'disable') return { type: 'disabled' };
+  if (norm === 'Disabled' || norm === 'disable' || category === 'disable') return { type: 'disabled' };
 
   // DPI
-  if (norm === 'DPI Loop' || norm === 'dpi:cycle') return { type: 'dpi', action: 1 };
+  if (norm === 'DPI Loop' || norm === 'dpi:cycle' || norm === 'dpi:loop') return { type: 'dpi', action: 1 };
   if (norm === 'DPI Up' || norm === 'dpi:up') return { type: 'dpi', action: 2 };
   if (norm === 'DPI Down' || norm === 'dpi:down') return { type: 'dpi', action: 3 };
-  if (category === 'dpi') return { type: 'dpi', action: 1 };
+  if (category === 'dpi' || (category === 'mousekeys' && (norm === 'DPI Loop' || norm === 'dpi:loop'))) {
+    return { type: 'dpi', action: 1 };
+  }
 
   // Multimedia keys
   if (MULTIMEDIA_KEY_CODES[norm] !== undefined) {
@@ -567,7 +580,7 @@ export function buttonActionToPinAction(action: ButtonAction, pin: PinId): PinAc
       else if (action.button === 5) label = 'Forward';
       else if (action.button === 0x10) label = 'Scroll Up';
       else if (action.button === 0x11) label = 'Scroll Down';
-      return { pin, category: 'basickeys', action: label };
+      return { pin, category: 'mousekeys', action: label };
     }
     case 'dpi': {
       let label = 'DPI Loop';

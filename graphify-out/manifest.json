@@ -18,8 +18,8 @@
     "semantic_hash": ""
   },
   "crates/glorious-service/src/api.rs": {
-    "mtime": 1793657599.79633,
-    "seen": 1793657636.5920095,
+    "mtime": 1793660809.5358138,
+    "seen": 1793660845.6741164,
     "ast_hash": "ab0574655cef145798eddf930ba5aa17",
     "semantic_hash": ""
   },
@@ -42,15 +42,15 @@
     "semantic_hash": "979a43f7b2a8b2ad911bac4947f3404a"
   },
   "crates/glorious-service/src/hid/sinowealth.rs": {
-    "mtime": 1793647522.094719,
-    "seen": 1793647723.0597565,
-    "ast_hash": "4d5f127e785d9431b976ec718461fd04",
+    "mtime": 1793660722.3553193,
+    "seen": 1793660845.6741261,
+    "ast_hash": "5a887719243164f11ffee5f4047eec61",
     "semantic_hash": ""
   },
   "crates/glorious-service/src/lib.rs": {
-    "mtime": 1793647434.9846423,
-    "seen": 1793647723.0597582,
-    "ast_hash": "66656304d35948dd6f304b86420d91c5",
+    "mtime": 1793660574.7869623,
+    "seen": 1793660845.6741278,
+    "ast_hash": "11615efbddc86d788c74a3217338fa22",
     "semantic_hash": ""
   },
   "crates/glorious-service/src/main.rs": {
@@ -66,9 +66,9 @@
     "semantic_hash": ""
   },
   "crates/glorious-service/src/types.rs": {
-    "mtime": 1793647366.386602,
-    "seen": 1793647723.059763,
-    "ast_hash": "ad73bc5103e6c534416eb0c7289b6da0",
+    "mtime": 1793660651.1431456,
+    "seen": 1793660845.674135,
+    "ast_hash": "4211df21d11208b4cc21546f86a9d87c",
     "semantic_hash": ""
   },
   "crates/glorious-service/src/ws.rs": {
@@ -456,9 +456,9 @@
     "semantic_hash": ""
   },
   "frontend/src/App.svelte": {
-    "mtime": 1793657407.7498589,
-    "seen": 1793657636.5920246,
-    "ast_hash": "31a03438fe142426ad416e0443e12da1",
+    "mtime": 1793660591.3360016,
+    "seen": 1793660845.6741438,
+    "ast_hash": "6c47adf2f438d24f5e29dae3cf509def",
     "semantic_hash": ""
   },
   "frontend/src/components/Dock.svelte": {
@@ -474,9 +474,9 @@
     "semantic_hash": ""
   },
   "frontend/src/components/LightingView.svelte": {
-    "mtime": 1793657546.6699464,
-    "seen": 1793657636.592027,
-    "ast_hash": "dc1ba86eac61bb868f18d599ba86f85c",
+    "mtime": 1793660546.825896,
+    "seen": 1793660845.6741488,
+    "ast_hash": "5c6348c50ce291466d9aa091024415f4",
     "semantic_hash": ""
   },
   "frontend/src/components/PointerView.svelte": {
@@ -498,9 +498,9 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/actions.ts": {
-    "mtime": 1793648111.38872,
-    "seen": 1793648327.6846266,
-    "ast_hash": "65c74418a9a0870b8085f553eee65ec0",
+    "mtime": 1793660551.6929076,
+    "seen": 1793660845.6741555,
+    "ast_hash": "65da77e49309ba58b614066ce8c96916",
     "semantic_hash": ""
   },
   "frontend/src/lib/api.ts": {
@@ -510,9 +510,9 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/types.ts": {
-    "mtime": 1793648082.0706573,
-    "seen": 1793648327.6846282,
-    "ast_hash": "2530b645ee818769785b692e3662111a",
+    "mtime": 1793660386.156527,
+    "seen": 1793660845.674158,
+    "ast_hash": "e401a9da43a8f50b27019808b06f2295",
     "semantic_hash": ""
   },
   "frontend/src/main.ts": {
@@ -648,9 +648,9 @@
     "semantic_hash": ""
   },
   "crates/glorious-service/src/profiles.rs": {
-    "mtime": 1793647423.7726343,
-    "seen": 1793647723.0597618,
-    "ast_hash": "589e9ad38ce622ee4126aec47cc54408",
+    "mtime": 1793660608.9650438,
+    "seen": 1793660845.6741333,
+    "ast_hash": "765bbc021aaf0e177be33d8ecaee3912",
     "semantic_hash": ""
   }
 }

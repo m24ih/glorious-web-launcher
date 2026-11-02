@@ -25,6 +25,7 @@
     DEFAULT_PIN_ACTIONS,
     DPI_COLORS,
     draftFromDevice,
+    draftFromSettings,
     hexToRgb,
     LIGHTING_EFFECTS,
     LAUNCHER_VERSION,
@@ -40,6 +41,7 @@
   let selectedPin = $state<PinId | null>('left');
   let mappings = $state<PinAction[]>(DEFAULT_PIN_ACTIONS);
   let draft = $state<SettingsDraft>(draftFromDevice(null));
+  let profileDrafts = $state<Record<number, { draft: SettingsDraft; mappings: PinAction[] }>>({});
   let hasUserModified = $state<boolean>(false);
   let applying = $state<boolean>(false);
   let toastMessage = $state<string | null>(null);
@@ -55,18 +57,76 @@
     }, 3200);
   }
 
+  function populateProfileDrafts(dev: DeviceView) {
+    if (dev.profiles) {
+      for (const [pidStr, settings] of Object.entries(dev.profiles)) {
+        const pid = Number(pidStr);
+        if (!profileDrafts[pid] || !hasUserModified) {
+          profileDrafts[pid] = {
+            draft: draftFromSettings(settings),
+            mappings: settings.buttons && settings.buttons.length > 0
+              ? bindingsToPinActions(settings.buttons)
+              : DEFAULT_PIN_ACTIONS,
+          };
+        }
+      }
+    }
+  }
+
+  function onProfileChange(newProfile: number) {
+    if (newProfile === activeProfile) return;
+
+    // Save current profile's draft and mappings
+    profileDrafts[activeProfile] = {
+      draft: $state.snapshot(draft),
+      mappings: [...mappings],
+    };
+
+    activeProfile = newProfile;
+
+    if (profileDrafts[newProfile]) {
+      draft = profileDrafts[newProfile].draft;
+      mappings = profileDrafts[newProfile].mappings;
+    } else if (device?.profiles?.[newProfile]) {
+      const pSettings = device.profiles[newProfile];
+      draft = draftFromSettings(pSettings);
+      mappings = pSettings.buttons && pSettings.buttons.length > 0
+        ? bindingsToPinActions(pSettings.buttons)
+        : DEFAULT_PIN_ACTIONS;
+      profileDrafts[newProfile] = {
+        draft: $state.snapshot(draft),
+        mappings: [...mappings],
+      };
+    } else {
+      draft = { ...draftFromSettings(null), profile: newProfile };
+      mappings = DEFAULT_PIN_ACTIONS;
+      profileDrafts[newProfile] = {
+        draft: $state.snapshot(draft),
+        mappings: [...mappings],
+      };
+    }
+  }
+
   function onAssign(category: ActionCategory, action: string) {
     if (!selectedPin) return;
     hasUserModified = true;
     mappings = mappings.map((m) =>
       m.pin === selectedPin ? { ...m, category, action } : m,
     );
+    profileDrafts[activeProfile] = {
+      draft: $state.snapshot(draft),
+      mappings: [...mappings],
+    };
     showToast(`Rebound ${selectedPin} to ${action}`);
   }
 
   function onDraftChange(updater: (draft: SettingsDraft) => SettingsDraft) {
     hasUserModified = true;
     draft = updater(draft);
+    profileDrafts[activeProfile] = {
+      draft: $state.snapshot(draft),
+      mappings: [...mappings],
+    };
   }
 
   async function onLightingLivePreview(lighting: LightingSettings) {
@@ -100,12 +160,25 @@
 
   function onReset() {
     hasUserModified = false;
-    draft = draftFromDevice(device);
-    if (device?.settings?.buttons && device.settings.buttons.length > 0) {
-      mappings = bindingsToPinActions(device.settings.buttons);
+    if (device?.profiles?.[activeProfile]) {
+      const p = device.profiles[activeProfile];
+      draft = draftFromSettings(p);
+      mappings = p.buttons && p.buttons.length > 0
+        ? bindingsToPinActions(p.buttons)
+        : DEFAULT_PIN_ACTIONS;
+    } else if (device?.settings && activeProfile === (device.settings.active_profile ?? 1)) {
+      draft = draftFromDevice(device);
+      mappings = device.settings.buttons && device.settings.buttons.length > 0
+        ? bindingsToPinActions(device.settings.buttons)
+        : DEFAULT_PIN_ACTIONS;
     } else {
+      draft = { ...draftFromSettings(null), profile: activeProfile };
       mappings = DEFAULT_PIN_ACTIONS;
     }
+    profileDrafts[activeProfile] = {
+      draft: $state.snapshot(draft),
+      mappings: [...mappings],
+    };
     showToast('Reverted settings to defaults');
   }
 
@@ -136,9 +209,15 @@
       const res = await applySettings(device.slug, patch);
       if (res?.device) {
         device = res.device;
-        draft = draftFromDevice(res.device);
-        if (res.device.settings?.buttons && res.device.settings.buttons.length > 0) {
-          mappings = bindingsToPinActions(res.device.settings.buttons);
+        populateProfileDrafts(res.device);
+        if (profileDrafts[activeProfile]) {
+          draft = profileDrafts[activeProfile].draft;
+          mappings = profileDrafts[activeProfile].mappings;
+        } else if (res.device.settings) {
+          draft = draftFromSettings(res.device.settings);
+          if (res.device.settings.buttons && res.device.settings.buttons.length > 0) {
+            mappings = bindingsToPinActions(res.device.settings.buttons);
+          }
         }
         hasUserModified = false;
       }
@@ -158,14 +237,20 @@
         if (list.devices.length > 0) {
           const connected = list.devices.find((d) => d.connected) ?? list.devices[0];
           device = connected;
-          if (!hasUserModified) {
-            draft = draftFromDevice(connected);
-            if (connected.settings?.buttons && connected.settings.buttons.length > 0) {
-              mappings = bindingsToPinActions(connected.settings.buttons);
-            }
-          }
+          populateProfileDrafts(connected);
           if (connected.settings?.active_profile) {
             activeProfile = connected.settings.active_profile;
+          }
+          if (!hasUserModified) {
+            if (profileDrafts[activeProfile]) {
+              draft = profileDrafts[activeProfile].draft;
+              mappings = profileDrafts[activeProfile].mappings;
+            } else {
+              draft = draftFromDevice(connected);
+              if (connected.settings?.buttons && connected.settings.buttons.length > 0) {
+                mappings = bindingsToPinActions(connected.settings.buttons);
+              }
+            }
           }
         }
       })
@@ -183,20 +268,32 @@
               : null;
             const chosen = updated ?? event.devices.find((d) => d.connected) ?? event.devices[0];
             device = chosen;
+            populateProfileDrafts(chosen);
             if (!hasUserModified) {
-              draft = draftFromDevice(chosen);
-              if (chosen.settings?.buttons && chosen.settings.buttons.length > 0) {
-                mappings = bindingsToPinActions(chosen.settings.buttons);
+              if (profileDrafts[activeProfile]) {
+                draft = profileDrafts[activeProfile].draft;
+                mappings = profileDrafts[activeProfile].mappings;
+              } else {
+                draft = draftFromDevice(chosen);
+                if (chosen.settings?.buttons && chosen.settings.buttons.length > 0) {
+                  mappings = bindingsToPinActions(chosen.settings.buttons);
+                }
               }
             }
           }
         } else if (event.type === 'applied') {
           if (device && event.slug === device.slug) {
             device = event.device;
+            populateProfileDrafts(event.device);
             if (!hasUserModified) {
-              draft = draftFromDevice(event.device);
-              if (event.device.settings?.buttons && event.device.settings.buttons.length > 0) {
-                mappings = bindingsToPinActions(event.device.settings.buttons);
+              if (profileDrafts[activeProfile]) {
+                draft = profileDrafts[activeProfile].draft;
+                mappings = profileDrafts[activeProfile].mappings;
+              } else {
+                draft = draftFromDevice(event.device);
+                if (event.device.settings?.buttons && event.device.settings.buttons.length > 0) {
+                  mappings = bindingsToPinActions(event.device.settings.buttons);
+                }
               }
             }
           }
@@ -223,11 +320,7 @@
     {activeTab}
     {activeProfile}
     onTabChange={(tab) => (activeTab = tab)}
-    onProfileChange={(n) => {
-      activeProfile = n;
-      hasUserModified = true;
-      draft = { ...draft, profile: n };
-    }}
+    onProfileChange={onProfileChange}
     serviceVersion={LAUNCHER_VERSION}
   />
 

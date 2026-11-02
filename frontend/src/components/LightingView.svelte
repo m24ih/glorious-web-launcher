@@ -139,6 +139,54 @@
         return 'background: #18181b; box-shadow: none;';
     }
   }
+
+  function getCardClass(effectId: number): string {
+    switch (effectId) {
+      case 1:
+        return 'card-anim-glorious';
+      case 2:
+        return 'card-anim-seamless';
+      case 3:
+        return 'anim-breathing';
+      case 4:
+        return 'anim-static';
+      case 5:
+        return 'anim-single-breathing';
+      case 6:
+        return 'card-anim-tail';
+      case 7:
+        return 'anim-rave';
+      case 8:
+        return 'card-anim-wave';
+      case 0:
+      default:
+        return 'anim-off';
+    }
+  }
+
+  function getCardStyle(effectId: number, color: string): string {
+    switch (effectId) {
+      case 1: // Glorious Mode (horizontal flow)
+        return 'background: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00ffff, #0066ff, #9900ff, #ff0000); background-size: 200% 100%; box-shadow: 0 0 14px rgba(255, 184, 0, 0.45);';
+      case 2: // Seamless Breathing
+        return 'background: linear-gradient(90deg, #ff2d55, #ffb800, #2dff88, #00d4ff, #b52dff); background-size: 150% 150%; box-shadow: 0 0 14px rgba(0, 212, 255, 0.4);';
+      case 3: // Breathing
+        return `background: ${color}; box-shadow: 0 0 16px ${color};`;
+      case 4: // Single Color (Static)
+        return `background: ${color}; box-shadow: 0 0 16px ${color};`;
+      case 5: // Single Breathing
+        return `background: ${color}; box-shadow: 0 0 16px ${color};`;
+      case 6: // Tail (horizontal flow)
+        return 'background: linear-gradient(90deg, transparent 0%, #fff60a 20%, #0aff7d 40%, #ff600a 60%, #0affe5 80%, #ff0ad4 90%, #ff0000 100%); background-size: 300% 100%; box-shadow: 0 0 14px rgba(255, 184, 0, 0.45);';
+      case 7: // Rave
+        return 'box-shadow: 0 0 16px rgba(255, 0, 85, 0.6);';
+      case 8: // Wave (horizontal flow)
+        return 'background: linear-gradient(90deg, #ff2d2d, #ffb800, #2dff6a, #2d8cff, #c12dff, #ff2d2d); background-size: 200% 100%; box-shadow: 0 0 14px rgba(45, 140, 255, 0.45);';
+      case 0:
+      default:
+        return 'background: #18181b; box-shadow: none;';
+    }
+  }
 </script>
 
 <div class="flex-1 overflow-y-auto p-8">
@@ -277,8 +325,8 @@
                 </div>
               {:else}
                 <div
-                  class="h-full w-full rounded-full transition-all duration-200 {getEffectClass(effect.id)}"
-                  style="opacity: {glowOpacity}; --anim-duration: {animDuration}s; --effect-color: {draft.lighting.color}; {getEffectStyle(effect.id, draft.lighting.color)}"
+                  class="h-full w-full rounded-full transition-all duration-200 {getCardClass(effect.id)}"
+                  style="opacity: {glowOpacity}; --anim-duration: {animDuration}s; --effect-color: {draft.lighting.color}; {getCardStyle(effect.id, draft.lighting.color)}"
                 ></div>
               {/if}
             </div>
@@ -408,12 +456,13 @@
 </div>
 
 <style>
+  /* ── Hero Preview (Vertical Top-to-Bottom Flow) ── */
   @keyframes rainbow-flow {
     from {
-      background-position: 50% 0%;
+      background-position: 50% 200%;
     }
     to {
-      background-position: 50% 200%;
+      background-position: 50% 0%;
     }
   }
 
@@ -452,10 +501,10 @@
 
   @keyframes tail-flow {
     from {
-      background-position: 50% 0%;
+      background-position: 50% 300%;
     }
     to {
-      background-position: 50% 300%;
+      background-position: 50% 0%;
     }
   }
 
@@ -476,10 +525,10 @@
 
   @keyframes wave-slide {
     from {
-      background-position: 50% 0%;
+      background-position: 50% 200%;
     }
     to {
-      background-position: 50% 200%;
+      background-position: 50% 0%;
     }
   }
 
@@ -517,5 +566,49 @@
 
   .anim-off {
     background: #18181b;
+  }
+
+  /* ── Card Preview (Horizontal Left-to-Right Flow) ── */
+  @keyframes card-rainbow-flow {
+    from {
+      background-position: 200% 50%;
+    }
+    to {
+      background-position: 0% 50%;
+    }
+  }
+
+  @keyframes card-tail-flow {
+    from {
+      background-position: 300% 50%;
+    }
+    to {
+      background-position: 0% 50%;
+    }
+  }
+
+  @keyframes card-wave-slide {
+    from {
+      background-position: 200% 50%;
+    }
+    to {
+      background-position: 0% 50%;
+    }
+  }
+
+  .card-anim-glorious {
+    animation: card-rainbow-flow var(--anim-duration, 2.5s) linear infinite;
+  }
+
+  .card-anim-seamless {
+    animation: hue-breathe var(--anim-duration, 2.5s) ease-in-out infinite;
+  }
+
+  .card-anim-tail {
+    animation: card-tail-flow var(--anim-duration, 2.5s) ease-in-out infinite;
+  }
+
+  .card-anim-wave {
+    animation: card-wave-slide var(--anim-duration, 2.5s) linear infinite;
   }
 </style>
