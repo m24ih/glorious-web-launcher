@@ -10,6 +10,9 @@ import type {
   DpiStage,
   EffectId,
   EffectName,
+  MacroDefinition,
+  MacroEvent,
+  MacroRepeatMode,
   PinAction,
   PinId,
   SettingsView,
@@ -40,73 +43,73 @@ export const PIN_SPECS: PinSpec[] = [
     id: 'left',
     label: 'Left Click',
     side: 'left',
-    pillX: 12,
-    pillY: 20,
-    anchorX: 45.6,
-    anchorY: 16,
+    pillX: 14,
+    pillY: 18,
+    anchorX: 44.0,
+    anchorY: 15.0,
   },
   {
     id: 'forward',
     label: 'Forward',
     side: 'left',
     pillX: 14,
-    pillY: 56,
-    anchorX: 41.6,
-    anchorY: 54,
+    pillY: 38,
+    anchorX: 36.2,
+    anchorY: 36.5,
   },
   {
     id: 'backward',
     label: 'Backward',
     side: 'left',
-    pillX: 16,
-    pillY: 68,
-    anchorX: 41.8,
-    anchorY: 65,
+    pillX: 14,
+    pillY: 52,
+    anchorX: 36.2,
+    anchorY: 45.0,
   },
   {
     id: 'right',
     label: 'Right Click',
     side: 'right',
-    pillX: 88,
-    pillY: 20,
-    anchorX: 54.4,
-    anchorY: 16,
+    pillX: 86,
+    pillY: 18,
+    anchorX: 56.0,
+    anchorY: 15.0,
   },
   {
     id: 'scroll_up',
     label: 'Scroll Up',
     side: 'right',
     pillX: 86,
-    pillY: 38,
-    anchorX: 50,
-    anchorY: 34,
+    pillY: 30,
+    anchorX: 50.5,
+    anchorY: 18.5,
   },
   {
     id: 'middle',
     label: 'Middle Click',
     side: 'right',
-    pillX: 84,
-    pillY: 48,
-    anchorX: 50.2,
-    anchorY: 41,
+    pillX: 86,
+    pillY: 42,
+    anchorX: 50.5,
+    anchorY: 22.5,
   },
   {
     id: 'scroll_down',
     label: 'Scroll Down',
     side: 'right',
-    pillX: 84,
-    pillY: 58,
-    anchorX: 50,
-    anchorY: 47,
+    pillX: 86,
+    pillY: 54,
+    anchorX: 50.5,
+    anchorY: 26.5,
   },
   {
     id: 'dpi',
     label: 'DPI Loop',
     side: 'right',
-    pillX: 85,
-    pillY: 76,
-    anchorX: 44.8,
-    anchorY: 72,
+    pillX: 86,
+    pillY: 66,
+    anchorX: 50.5,
+    anchorY: 33.0,
   },
 ];
 
@@ -494,8 +497,29 @@ export const SPECIAL_KEY_CODES: Record<string, { key_code: number; modifiers?: n
   'Win': { key_code: 0xE3, modifiers: 8 },
 };
 
-export function pinActionToButtonAction(actionStr: string, category?: ActionCategory): ButtonAction {
+export function pinActionToButtonAction(
+  actionStr: string,
+  category?: ActionCategory,
+  macros?: MacroDefinition[]
+): ButtonAction {
   const norm = actionStr.trim();
+
+  // Macro bindings — must run before generic letter matching so "Macro 1"
+  // or "macro:m1" / "macro:M1" resolve to the macro action type.
+  if (category === 'macro' || norm.startsWith('macro:')) {
+    const mMatch = norm.match(/^macro:m(\d+)$/i);
+    const slot = mMatch ? parseInt(mMatch[1], 10) : 0;
+    let repeat_mode = 0;
+    let loop_count = 1;
+    if (macros) {
+      const macro = macros.find((x) => x.slot === slot);
+      if (macro) {
+        repeat_mode = macro.repeatMode === 'toggle' ? 1 : macro.repeatMode === 'while_holding' ? 2 : 0;
+        loop_count = macro.loopCount || 1;
+      }
+    }
+    return { type: 'macro', macro_id: slot, repeat_mode, loop_count };
+  }
 
   // Mouse keys category & basic mouse actions
   if (norm === 'Left Click' || norm === 'mouse:left') return { type: 'mouse', button: 1 };
@@ -615,6 +639,9 @@ export function buttonActionToPinAction(action: ButtonAction, pin: PinId): PinAc
       else if (action.action === 3) label = 'DPI Down';
       return { pin, category: 'dpi', action: label };
     }
+    case 'macro': {
+      return { pin, category: 'macro', action: `Macro ${action.macro_id}` };
+    }
     case 'media': {
       const entry = Object.entries(MULTIMEDIA_KEY_CODES).find(
         ([, code]) => code === action.key
@@ -657,10 +684,10 @@ export function buttonActionToPinAction(action: ButtonAction, pin: PinId): PinAc
 }
 
 /** Convert UI PinAction mappings to wire ButtonBinding array */
-export function pinActionsToBindings(mappings: PinAction[]): ButtonBinding[] {
+export function pinActionsToBindings(mappings: PinAction[], macros?: MacroDefinition[]): ButtonBinding[] {
   return mappings.map((m) => {
     const button_id = PIN_TO_BUTTON_ID[m.pin] ?? 1;
-    const action = pinActionToButtonAction(m.action, m.category);
+    const action = pinActionToButtonAction(m.action, m.category, macros);
     return {
       pin: m.pin,
       button_id,
@@ -685,4 +712,89 @@ export function bindingsToPinActions(bindings: ButtonBinding[]): PinAction[] {
   }
 
   return Object.values(result);
+}
+
+/* ── Macro Builder helpers ───────────────────────────────────────────────── */
+
+export const DEFAULT_MACROS: MacroDefinition[] = [
+  {
+    id: 'm1',
+    slot: 1,
+    name: 'Copy Sequence',
+    repeatMode: 'no_repeat',
+    loopCount: 1,
+    events: [
+      { id: 'e1', type: 'down', key: 'Ctrl' },
+      { id: 'e2', type: 'down', key: 'C' },
+      { id: 'e3', type: 'up', key: 'C' },
+      { id: 'e4', type: 'up', key: 'Ctrl' },
+    ],
+  },
+  {
+    id: 'm2',
+    slot: 2,
+    name: 'Paste Sequence',
+    repeatMode: 'no_repeat',
+    loopCount: 1,
+    events: [
+      { id: 'e1', type: 'down', key: 'Ctrl' },
+      { id: 'e2', type: 'down', key: 'V' },
+      { id: 'e3', type: 'up', key: 'V' },
+      { id: 'e4', type: 'up', key: 'Ctrl' },
+    ],
+  },
+];
+
+const MACRO_STORAGE_KEY = 'glorious_macros';
+
+export function loadMacros(): MacroDefinition[] {
+  try {
+    const raw = localStorage.getItem(MACRO_STORAGE_KEY);
+    if (raw) return JSON.parse(raw) as MacroDefinition[];
+  } catch {}
+  return DEFAULT_MACROS.slice();
+}
+
+export function saveMacros(macros: MacroDefinition[]): void {
+  try {
+    localStorage.setItem(MACRO_STORAGE_KEY, JSON.stringify(macros));
+  } catch {}
+}
+
+export function getMacroActionLabel(actionStr: string, macros: MacroDefinition[]): string {
+  const match = actionStr.match(/^macro:m(\d+)$/i);
+  if (match) {
+    const slot = parseInt(match[1], 10);
+    const macro = macros.find((m) => m.slot === slot);
+    if (macro) return macro.name || `Macro ${slot}`;
+    return `Macro ${slot}`;
+  }
+  const m = macros.find((macro) => macro.name === actionStr.trim());
+  if (m) return m.name || `Macro ${m.slot}`;
+  return actionStr.trim();
+}
+
+/* ── pinActionToButtonAction macro extension ──────────────────────────── */
+
+export function pinActionToButtonActionMacro(
+  actionStr: string,
+  category?: ActionCategory,
+  macros?: MacroDefinition[]
+): ButtonAction {
+  const norm = actionStr.trim();
+  if (category === 'macro' || norm.startsWith('macro:')) {
+    const mMatch = norm.match(/^macro:m(\d+)$/i);
+    const slot = mMatch ? parseInt(mMatch[1], 10) : 0;
+    let repeat_mode = 0;
+    let loop_count = 1;
+    if (macros) {
+      const macro = macros.find((x) => x.slot === slot);
+      if (macro) {
+        repeat_mode = macro.repeatMode === 'toggle' ? 1 : macro.repeatMode === 'while_holding' ? 2 : 0;
+        loop_count = macro.loopCount || 1;
+      }
+    }
+    return { type: 'macro', macro_id: slot, repeat_mode, loop_count };
+  }
+  return { type: 'disabled' };
 }
