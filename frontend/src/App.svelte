@@ -6,6 +6,7 @@
   import PointerView from './components/PointerView.svelte';
   import LightingView from './components/LightingView.svelte';
   import FirmwareView from './components/FirmwareView.svelte';
+  import MacroView from './components/MacroView.svelte';
   import type {
     DeviceView,
     PinAction,
@@ -413,6 +414,8 @@
         <LightingView {draft} onChange={onDraftChange} onLivePreview={onLightingLivePreview} />
       {:else if activeTab === 'firmware'}
         <FirmwareView {device} />
+      {:else if activeTab === 'macro'}
+        <MacroView {activeTab} onTabChange={(t: string) => (activeTab = t as TabId)} />
       {/if}
     {/if}
 

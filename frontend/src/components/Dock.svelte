@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PinId, ActionCategory, PinAction } from '../lib/types';
-  import { DOCK_CATEGORIES, DOCK_ACTIONS, PIN_LABELS } from '../lib/actions';
+  import { DOCK_CATEGORIES, DOCK_ACTIONS, PIN_LABELS, loadMacros } from '../lib/actions';
 
   interface Props {
     selectedPin: PinId | null;
@@ -19,6 +19,9 @@
   const currentLabel = $derived(
     selectedPin ? PIN_LABELS[selectedPin] : null
   );
+
+  // Load macros when macro category selected to allow direct selection
+  let macroList = $derived(activeCategory === 'macro' ? loadMacros() : []);
 </script>
 
 <div class="border-t border-edge bg-panel px-6 py-4">
@@ -56,17 +59,31 @@
     <!-- Action pills grid -->
     <div class="rounded-2xl border border-edge bg-card p-3">
       <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1.5 max-h-[135px] overflow-y-auto pr-1">
-        {#each DOCK_ACTIONS[activeCategory] ?? [] as action (action.id)}
-          <button
-            type="button"
-            class="flex items-center justify-center rounded-xl border border-edge bg-canvas/60 px-2.5 py-2 text-center text-xs font-medium text-ink transition hover:border-glorious hover:bg-glorious/10 hover:text-glorious disabled:cursor-not-allowed disabled:opacity-40"
-            disabled={!selectedPin}
-            onclick={() => onAssign(activeCategory, action.label)}
-            title={selectedPin ? `Assign ${action.label} to ${currentLabel}` : 'Select a pin first'}
-          >
-            <span class="truncate">{action.label}</span>
-          </button>
-        {/each}
+        {#if activeCategory === 'macro'}
+          {#each macroList as macro}
+            <button
+              type="button"
+              class="flex items-center justify-center rounded-xl border border-edge bg-canvas/60 px-2.5 py-2 text-center text-xs font-medium text-ink transition hover:border-glorious hover:bg-glorious/10 hover:text-glorious disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={!selectedPin}
+              onclick={() => onAssign('macro', `macro:m${macro.slot}`)}
+              title={selectedPin ? `Assign ${macro.name} to ${currentLabel}` : 'Select a pin first'}
+            >
+              <span class="truncate">{macro.name || `M${macro.slot}`}</span>
+            </button>
+          {/each}
+        {:else}
+          {#each DOCK_ACTIONS[activeCategory] ?? [] as action (action.id)}
+            <button
+              type="button"
+              class="flex items-center justify-center rounded-xl border border-edge bg-canvas/60 px-2.5 py-2 text-center text-xs font-medium text-ink transition hover:border-glorious hover:bg-glorious/10 hover:text-glorious disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={!selectedPin}
+              onclick={() => onAssign(activeCategory, action.label)}
+              title={selectedPin ? `Assign ${action.label} to ${currentLabel}` : 'Select a pin first'}
+            >
+              <span class="truncate">{action.label}</span>
+            </button>
+          {/each}
+        {/if}
       </div>
     </div>
   </div>

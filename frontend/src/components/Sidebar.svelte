@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Battery, BatteryFull, BatteryLow, BatteryMedium, Bluetooth, Cpu, Move, MousePointerClick, Palette, Usb, Zap } from 'lucide-svelte';
+  import { Battery, BatteryFull, BatteryLow, BatteryMedium, Bluetooth, Cpu, Move, MousePointerClick, Palette, Usb, Workflow, Zap } from 'lucide-svelte';
   import type { DeviceView, TabId } from '../lib/types';
   import { LAUNCHER_VERSION } from '../lib/actions';
 
@@ -19,6 +19,7 @@
     { id: 'customize', label: 'Customize', icon: MousePointerClick },
     { id: 'pointer', label: 'Pointer', icon: Move },
     { id: 'lighting', label: 'Lighting', icon: Palette },
+    { id: 'macro', label: 'Macro', icon: Workflow },
     { id: 'firmware', label: 'Firmware', icon: Cpu },
   ];
 

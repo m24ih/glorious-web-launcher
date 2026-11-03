@@ -124,6 +124,7 @@ export type ButtonAction =
   | { type: 'dpi'; action: number }
   | { type: 'profile'; action: number }
   | { type: 'media'; key: number }
+  | { type: 'macro'; macro_id: number; repeat_mode?: number; loop_count?: number }
   | { type: 'disabled' };
 
 export interface ButtonBinding {
@@ -178,7 +179,7 @@ export type ViewId =
   | 'macro'
   | 'firmware';
 
-export type TabId = Exclude<ViewId, 'macro'>;
+export type TabId = 'customize' | 'pointer' | 'lighting' | 'macro' | 'firmware';
 
 export type ActionCategory =
   | 'mousekeys'
@@ -214,3 +215,24 @@ export type PinId =
   | 'forward'
   | 'backward'
   | 'dpi';
+
+export type MacroEventType = 'down' | 'up' | 'delay' | 'text';
+export type MacroRepeatMode = 'no_repeat' | 'toggle' | 'while_holding';
+
+export interface MacroEvent {
+  id: string;
+  type: MacroEventType;
+  key?: string;
+  keyCode?: number;
+  delay?: number;
+  text?: string;
+}
+
+export interface MacroDefinition {
+  id: string;
+  slot: number;
+  name: string;
+  repeatMode: MacroRepeatMode;
+  loopCount: number;
+  events: MacroEvent[];
+}
