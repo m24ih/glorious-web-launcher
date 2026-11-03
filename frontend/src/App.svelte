@@ -5,6 +5,8 @@
   import Dock from './components/Dock.svelte';
   import PointerView from './components/PointerView.svelte';
   import LightingView from './components/LightingView.svelte';
+  import AdvancedView from './components/AdvancedView.svelte';
+  import AngleView from './components/AngleView.svelte';
   import FirmwareView from './components/FirmwareView.svelte';
   import MacroView from './components/MacroView.svelte';
   import type {
@@ -48,6 +50,18 @@
   let toastMessage = $state<string | null>(null);
 
   const canApply = $derived(device !== null && !applying);
+
+  /** Factory defaults, mirroring the service's sensible-default profile. */
+  const FACTORY_DEFAULTS = {
+    dpi_stages: [400, 800, 1600, 3200],
+    dpi_colors: ['#FFFF00', '#0000FF', '#FF0000', '#00FF00'],
+    active_dpi_stage: 1,
+    polling_rate: 1000,
+    debounce_ms: 10,
+    lod: 1,
+    sleep_seconds: 600,
+    lighting: { effect: 1, brightness: 80, rate: 50, color: '#ff0000' },
+  } as const;
 
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let profileDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -204,6 +218,75 @@
       mappings: [...mappings],
     };
     showToast('Reverted settings to defaults');
+  }
+
+  /**
+   * Rewrite every stored hardware profile with factory defaults. The service has
+   * no dedicated reset endpoint, so this walks the profiles through the normal
+   * apply path and then switches back to the profile the user was editing.
+   */
+  async function onFactoryReset() {
+    if (!device || applying) return;
+
+    const slug = device.slug;
+    applying = true;
+
+    const knownProfiles = device.profiles
+      ? Object.keys(device.profiles)
+          .map((id) => Number(id))
+          .filter((id) => !Number.isNaN(id))
+          .sort((a, b) => a - b)
+      : [];
+    const targets = knownProfiles.length > 0 ? knownProfiles : [1, 2, 3];
+
+    try {
+      let latestDevice: DeviceView | null = null;
+
+      for (const profileId of targets) {
+        const res = await applySettings(slug, {
+          profile: profileId,
+          dpi_stages: [...FACTORY_DEFAULTS.dpi_stages],
+          dpi_colors: [...FACTORY_DEFAULTS.dpi_colors],
+          active_dpi_stage: FACTORY_DEFAULTS.active_dpi_stage,
+          polling_rate: FACTORY_DEFAULTS.polling_rate,
+          debounce_ms: FACTORY_DEFAULTS.debounce_ms,
+          lod: FACTORY_DEFAULTS.lod,
+          sleep_seconds: FACTORY_DEFAULTS.sleep_seconds,
+          buttons: pinActionsToBindings(DEFAULT_PIN_ACTIONS),
+          rgb: {
+            brightness: FACTORY_DEFAULTS.lighting.brightness,
+            effect: FACTORY_DEFAULTS.lighting.effect,
+            rate: FACTORY_DEFAULTS.lighting.rate,
+            color: hexToRgb(FACTORY_DEFAULTS.lighting.color),
+          },
+        });
+        if (res?.device) latestDevice = res.device;
+      }
+
+      // The loop leaves the mouse on the last profile; restore the edited slot.
+      const restored = await applySettings(slug, { profile: activeProfile });
+      const fresh = restored?.device ?? latestDevice;
+
+      if (fresh) {
+        device = fresh;
+        profileDrafts = {};
+        hasUserModified = false;
+        populateProfileDrafts(fresh);
+        if (profileDrafts[activeProfile]) {
+          draft = profileDrafts[activeProfile].draft;
+          mappings = profileDrafts[activeProfile].mappings;
+        } else {
+          draft = draftFromDevice(fresh);
+          mappings = DEFAULT_PIN_ACTIONS;
+        }
+      }
+      hasUserModified = false;
+      showToast(`Factory reset applied to ${targets.length} profiles`);
+    } catch (e: any) {
+      showToast(e?.message ?? 'Factory reset failed');
+    } finally {
+      applying = false;
+    }
   }
 
   async function onApply() {
@@ -372,6 +455,7 @@
         {selectedPin}
         {mappings}
         {onAssign}
+        leftClickLocked={draft.left_click_lock}
       />
     {:else}
       <!-- Secondary Tab Navigation Header -->
@@ -412,6 +496,15 @@
         <PointerView {device} {draft} onChange={onDraftChange} />
       {:else if activeTab === 'lighting'}
         <LightingView {draft} onChange={onDraftChange} onLivePreview={onLightingLivePreview} />
+      {:else if activeTab === 'advanced'}
+        <AdvancedView
+          {device}
+          {draft}
+          onChange={onDraftChange}
+          onFactoryReset={onFactoryReset}
+        />
+      {:else if activeTab === 'angle'}
+        <AngleView {device} {draft} onChange={onDraftChange} />
       {:else if activeTab === 'firmware'}
         <FirmwareView {device} />
       {:else if activeTab === 'macro'}

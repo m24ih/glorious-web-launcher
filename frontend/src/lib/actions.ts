@@ -133,13 +133,17 @@ export const PIN_LABELS: Record<PinId, string> = Object.fromEntries(
 /* ── Dock ───────────────────────────────────────────────────────────────── */
 
 export const DOCK_CATEGORIES: DockCategory[] = [
-  { id: 'mousekeys', label: 'Mouse Keys' },
-  { id: 'basickeys', label: 'Basic Keys' },
-  { id: 'shortcuts', label: 'Shortcut Keys' },
+  { id: 'mousekeys', label: 'Basic Buttons' },
+  { id: 'basickeys', label: 'QWERTY / Basic Keys' },
+  { id: 'shortcuts', label: 'Mac & Windows Shortcut Keys' },
+  { id: 'combinations', label: 'Key Combinations' },
   { id: 'multimedia', label: 'Multimedia Keys' },
   { id: 'macro', label: 'Macro' },
   { id: 'dpi', label: 'DPI' },
-  { id: 'disable', label: 'Disable' },
+  { id: 'polling', label: 'Polling Rate' },
+  { id: 'gaming', label: 'Gaming Turbo' },
+  { id: 'profile', label: 'Profile' },
+  { id: 'disable', label: 'Disable Button' },
 ];
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -173,9 +177,10 @@ export const DOCK_ACTIONS: Record<ActionCategory, DockAction[]> = {
     { id: 'key:win', label: 'Win' },
   ],
   shortcuts: [
-    { id: 'sc:ctrl+c', label: 'Ctrl + C' },
-    { id: 'sc:ctrl+v', label: 'Ctrl + V' },
-    { id: 'sc:ctrl+x', label: 'Ctrl + X' },
+    /* Windows / Linux */
+    { id: 'sc:ctrl+c', label: 'Ctrl + C' }, // Copy
+    { id: 'sc:ctrl+v', label: 'Ctrl + V' }, // Paste
+    { id: 'sc:ctrl+x', label: 'Ctrl + X' }, // Cut
     { id: 'sc:ctrl+z', label: 'Ctrl + Z' },
     { id: 'sc:ctrl+y', label: 'Ctrl + Y' },
     { id: 'sc:ctrl+a', label: 'Ctrl + A' },
@@ -185,12 +190,40 @@ export const DOCK_ACTIONS: Record<ActionCategory, DockAction[]> = {
     { id: 'sc:ctrl+t', label: 'Ctrl + T' },
     { id: 'sc:alt+tab', label: 'Alt + Tab' },
     { id: 'sc:ctrl+alt+del', label: 'Ctrl + Alt + Del' },
-    { id: 'sc:win+d', label: 'Win + D' },
+    { id: 'sc:win+d', label: 'Win + D' }, // Show Desktop
     { id: 'sc:win+l', label: 'Win + L' },
     { id: 'sc:win+s', label: 'Win + S' },
     { id: 'sc:ctrl+shift+esc', label: 'Ctrl + Shift + Esc' },
-    { id: 'sc:win+tab', label: 'Win + Tab' },
+    { id: 'sc:win+tab', label: 'Win + Tab' }, // Task View
     { id: 'sc:alt+f4', label: 'Alt + F4' },
+    { id: 'sc:win+shift+s', label: 'Win + Shift + S' }, // Screenshot
+    { id: 'sc:prtscn', label: 'Print Screen' }, // Screenshot
+    { id: 'sc:ctrl+plus', label: 'Ctrl + +' }, // Zoom In
+    { id: 'sc:ctrl+minus', label: 'Ctrl + -' }, // Zoom Out
+    /* macOS */
+    { id: 'sc:cmd+c', label: 'Cmd + C' }, // Copy
+    { id: 'sc:cmd+v', label: 'Cmd + V' }, // Paste
+    { id: 'sc:cmd+x', label: 'Cmd + X' }, // Cut
+    { id: 'sc:cmd+z', label: 'Cmd + Z' },
+    { id: 'sc:cmd+a', label: 'Cmd + A' },
+    { id: 'sc:cmd+shift+3', label: 'Cmd + Shift + 3' }, // Screenshot
+    { id: 'sc:cmd+shift+4', label: 'Cmd + Shift + 4' }, // Screenshot region
+    { id: 'sc:cmd+f3', label: 'Cmd + F3' }, // Show Desktop
+    { id: 'sc:ctrl+up', label: 'Ctrl + Up' }, // Mission Control
+    { id: 'sc:cmd+plus', label: 'Cmd + +' }, // Zoom In
+    { id: 'sc:cmd+minus', label: 'Cmd + -' }, // Zoom Out
+  ],
+  combinations: [
+    { id: 'combo:ctrl+shift+a', label: 'Ctrl + Shift + A' },
+    { id: 'combo:ctrl+shift+z', label: 'Ctrl + Shift + Z' },
+    { id: 'combo:ctrl+shift+s', label: 'Ctrl + Shift + S' },
+    { id: 'combo:ctrl+shift+t', label: 'Ctrl + Shift + T' },
+    { id: 'combo:ctrl+shift+n', label: 'Ctrl + Shift + N' },
+    { id: 'combo:ctrl+shift+v', label: 'Ctrl + Shift + V' },
+    { id: 'combo:ctrl+shift+tab', label: 'Ctrl + Shift + Tab' },
+    { id: 'combo:alt+shift+tab', label: 'Alt + Shift + Tab' },
+    { id: 'combo:ctrl+alt+t', label: 'Ctrl + Alt + T' },
+    { id: 'combo:ctrl+shift+esc', label: 'Ctrl + Shift + Esc' },
   ],
   multimedia: [
     { id: 'mm:play', label: 'Play / Pause' },
@@ -227,6 +260,30 @@ export const DOCK_ACTIONS: Record<ActionCategory, DockAction[]> = {
     { id: 'dpi:cycle', label: 'DPI Loop' },
     { id: 'dpi:up', label: 'DPI Up' },
     { id: 'dpi:down', label: 'DPI Down' },
+  ],
+  polling: [
+    { id: 'polling:cycle', label: 'Cycle' },
+    { id: 'polling:125', label: '125 Hz' },
+    { id: 'polling:250', label: '250 Hz' },
+    { id: 'polling:500', label: '500 Hz' },
+    { id: 'polling:1000', label: '1000 Hz' },
+    { id: 'polling:2000', label: '2000 Hz' },
+    { id: 'polling:4000', label: '4000 Hz' },
+    { id: 'polling:8000', label: '8000 Hz' },
+  ],
+  gaming: [
+    { id: 'gaming:turbo', label: 'Gaming Turbo' },
+    { id: 'gaming:rapid_fire', label: 'Rapid Fire' },
+    { id: 'gaming:turbo_left', label: 'Gaming Turbo (Left)' },
+    { id: 'gaming:turbo_right', label: 'Gaming Turbo (Right)' },
+    { id: 'gaming:toggle', label: 'Turbo Toggle' },
+  ],
+  profile: [
+    { id: 'profile:1', label: 'Profile 1' },
+    { id: 'profile:2', label: 'Profile 2' },
+    { id: 'profile:3', label: 'Profile 3' },
+    { id: 'profile:4', label: 'Profile 4' },
+    { id: 'profile:5', label: 'Profile 5' },
   ],
   disable: [{ id: 'disable', label: 'Disabled' }],
 };
@@ -312,14 +369,38 @@ export const EFFECTS: EffectSpec[] = [
 export const SLEEP_PRESETS: Array<{ label: string; seconds: number | 'off' }> = [
   { label: '1 min', seconds: 60 },
   { label: '2 min', seconds: 120 },
-  { label: '3 min', seconds: 180 },
   { label: '5 min', seconds: 300 },
   { label: '10 min', seconds: 600 },
   { label: '15 min', seconds: 900 },
+  { label: '30 min', seconds: 1800 },
+  { label: '60 min', seconds: 3600 },
 ];
 
 export const LIGHTING_EFFECTS = EFFECTS;
 export const SLEEP_OPTIONS = [...SLEEP_PRESETS, { label: 'Off', seconds: 'off' as const }];
+
+/* ── Advanced / Angle (Keychron parity) ─────────────────────────────────── */
+
+/** Sensor angle limits, in degrees, as exposed by the Angle tab. */
+export const SENSOR_ANGLE_MIN = -10;
+export const SENSOR_ANGLE_MAX = 10;
+
+/** Safe defaults used when a device does not report the advanced fields. */
+export const ADVANCED_DEFAULTS = {
+  xy_split: false,
+  competitive_mode: false,
+  angle_snap: false,
+  ripple_control: false,
+  motion_sync: false,
+  sensor_angle: 0,
+  left_click_lock: true,
+  scroll_direction: 'standard',
+} as const;
+
+/** Clamp a sensor angle to the supported -10..10 degree range. */
+export function clampSensorAngle(angle: number): number {
+  return clamp(Math.round(angle), SENSOR_ANGLE_MIN, SENSOR_ANGLE_MAX);
+}
 
 /* ── Small helpers ──────────────────────────────────────────────────────── */
 
@@ -414,6 +495,15 @@ export function draftFromDevice(device?: { settings?: SettingsView | null } | nu
     lod: settings?.lod ?? 1,
     sleep_seconds: settings?.sleep_seconds ?? 'off',
     lighting,
+    xy_split: settings?.xy_split ?? ADVANCED_DEFAULTS.xy_split,
+    competitive_mode: settings?.competitive_mode ?? ADVANCED_DEFAULTS.competitive_mode,
+    angle_snap: settings?.angle_snap ?? ADVANCED_DEFAULTS.angle_snap,
+    ripple_control: settings?.ripple_control ?? ADVANCED_DEFAULTS.ripple_control,
+    motion_sync: settings?.motion_sync ?? ADVANCED_DEFAULTS.motion_sync,
+    sensor_angle: clampSensorAngle(settings?.sensor_angle ?? ADVANCED_DEFAULTS.sensor_angle),
+    left_click_lock: settings?.left_click_lock ?? ADVANCED_DEFAULTS.left_click_lock,
+    scroll_direction: settings?.scroll_direction ?? ADVANCED_DEFAULTS.scroll_direction,
+    gaming_turbo: settings?.gaming_turbo ? { ...settings.gaming_turbo } : undefined,
   };
 }
 
@@ -482,6 +572,33 @@ export const SHORTCUT_DEFINITIONS: Record<string, { key_code: number; modifiers:
   'Ctrl + Shift + Esc': { key_code: 0x29, modifiers: 3 },
   'Win + Tab': { key_code: 0x2B, modifiers: 8 },
   'Alt + F4': { key_code: 0x3D, modifiers: 4 },
+  /* Windows screenshots & zoom */
+  'Win + Shift + S': { key_code: 0x16, modifiers: 10 },
+  'Print Screen': { key_code: 0x46, modifiers: 0 },
+  'Ctrl + +': { key_code: 0x2E, modifiers: 1 },
+  'Ctrl + -': { key_code: 0x2D, modifiers: 1 },
+  /* macOS equivalents (Cmd = GUI modifier bit 8) */
+  'Cmd + C': { key_code: 0x06, modifiers: 8 },
+  'Cmd + V': { key_code: 0x19, modifiers: 8 },
+  'Cmd + X': { key_code: 0x1B, modifiers: 8 },
+  'Cmd + Z': { key_code: 0x1D, modifiers: 8 },
+  'Cmd + A': { key_code: 0x04, modifiers: 8 },
+  'Cmd + Shift + 3': { key_code: 0x20, modifiers: 10 },
+  'Cmd + Shift + 4': { key_code: 0x21, modifiers: 10 },
+  'Cmd + F3': { key_code: 0x3C, modifiers: 8 },
+  'Ctrl + Up': { key_code: 0x52, modifiers: 1 },
+  'Cmd + +': { key_code: 0x2E, modifiers: 8 },
+  'Cmd + -': { key_code: 0x2D, modifiers: 8 },
+  /* Key combinations */
+  'Ctrl + Shift + A': { key_code: 0x04, modifiers: 3 },
+  'Ctrl + Shift + Z': { key_code: 0x1D, modifiers: 3 },
+  'Ctrl + Shift + S': { key_code: 0x16, modifiers: 3 },
+  'Ctrl + Shift + T': { key_code: 0x17, modifiers: 3 },
+  'Ctrl + Shift + N': { key_code: 0x11, modifiers: 3 },
+  'Ctrl + Shift + V': { key_code: 0x19, modifiers: 3 },
+  'Ctrl + Shift + Tab': { key_code: 0x2B, modifiers: 3 },
+  'Alt + Shift + Tab': { key_code: 0x2B, modifiers: 6 },
+  'Ctrl + Alt + T': { key_code: 0x17, modifiers: 5 },
 };
 
 export const SPECIAL_KEY_CODES: Record<string, { key_code: number; modifiers?: number }> = {
@@ -542,6 +659,17 @@ export function pinActionToButtonAction(
   if (norm === 'Profile Down' || norm === 'mouse:profile_down') {
     return { type: 'profile', action: 3 };
   }
+
+  // Keychron parity: direct profile selection (Profile 1-5). The numeric
+  // target is preserved in the binding; the current service only implements
+  // up (1) / down (2) / cycle (anything else), so 3-5 currently cycle on the
+  // device until the service learns direct selection.
+  const profileMatch = /^profile:(\d+)$/i.exec(norm) ?? /^Profile (\d+)$/i.exec(norm);
+  if (profileMatch) {
+    const target = clamp(parseInt(profileMatch[1], 10), 1, 5);
+    return { type: 'profile', action: target };
+  }
+
   if (norm === 'Battery Check' || norm === 'mouse:battery') {
     return { type: 'mouse', button: 0x0C };
   }
@@ -610,6 +738,9 @@ export function pinActionToButtonAction(
     return { type: 'keyboard', ...SPECIAL_KEY_CODES[norm] };
   }
 
+  // Polling rate and Gaming Turbo describe device-level settings/dynamics;
+  // the wire protocol has no per-button action for them yet, so they stay
+  // inert rather than being mis-serialized into an unrelated action.
   return { type: 'disabled' };
 }
 

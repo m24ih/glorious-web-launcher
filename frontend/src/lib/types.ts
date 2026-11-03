@@ -20,6 +20,8 @@ export interface FirmwareInfo {
 export interface DpiStage {
   value: number;
   color?: string;
+  x?: number;
+  y?: number;
 }
 
 export interface SettingsView {
@@ -40,6 +42,17 @@ export interface SettingsView {
     rate: number;
     color: [number, number, number];
   } | null;
+
+  /* ── Keychron Launcher parity (advanced / angle tabs) ── */
+  xy_split?: boolean;
+  competitive_mode?: boolean;
+  angle_snap?: boolean;
+  ripple_control?: boolean;
+  motion_sync?: boolean;
+  sensor_angle?: number;
+  left_click_lock?: boolean;
+  scroll_direction?: ScrollDirection;
+  gaming_turbo?: GamingTurbo;
 }
 
 export interface LightingSettings {
@@ -47,6 +60,15 @@ export interface LightingSettings {
   brightness: number;
   rate: number;
   color: string;
+}
+
+export type ScrollDirection = 'standard' | 'reverse';
+
+/** Gaming Turbo (rapid fire) binding: how often and how many repeats a key fires. */
+export interface GamingTurbo {
+  key: string;
+  count: number;
+  rate_ms: number;
 }
 
 export interface SettingsDraft {
@@ -58,6 +80,25 @@ export interface SettingsDraft {
   lod: number;
   sleep_seconds: number | 'off';
   lighting: LightingSettings;
+
+  /* ── Keychron Launcher parity ── */
+  /** Split X/Y axis sensitivity (Advanced tab). */
+  xy_split: boolean;
+  /** Competitive mode: locks risky bindings while gaming (Advanced tab). */
+  competitive_mode: boolean;
+  /** Snap pointer movement to fixed angles in increments. */
+  angle_snap: boolean;
+  /** Ripple control for click/scroll repeat flood protection. */
+  ripple_control: boolean;
+  /** Motion sync keeps sensor sampling aligned with report intervals. */
+  motion_sync: boolean;
+  /** Sensor angle in degrees, -10..10 (Angle tab). */
+  sensor_angle: number;
+  /** Keep the left click usable even when the profile disables it. */
+  left_click_lock: boolean;
+  scroll_direction: ScrollDirection;
+  /** Null/undefined when Gaming Turbo is not configured. */
+  gaming_turbo?: GamingTurbo;
 }
 
 export interface ConnectionView {
@@ -144,6 +185,18 @@ export interface SettingsPatch {
   sleep_seconds?: number;
   buttons?: ButtonBinding[];
   rgb?: RgbPatch;
+
+  /* ── Keychron Launcher parity (advanced / angle tabs) ── */
+  xy_split?: boolean;
+  competitive_mode?: boolean;
+  angle_snap?: boolean;
+  ripple_control?: boolean;
+  motion_sync?: boolean;
+  /** Sensor angle in degrees, clamped to -10..10. */
+  sensor_angle?: number;
+  left_click_lock?: boolean;
+  scroll_direction?: ScrollDirection;
+  gaming_turbo?: GamingTurbo;
 }
 
 export interface ApplyResult {
@@ -176,18 +229,31 @@ export type ViewId =
   | 'customize'
   | 'pointer'
   | 'lighting'
+  | 'advanced'
+  | 'angle'
   | 'macro'
   | 'firmware';
 
-export type TabId = 'customize' | 'pointer' | 'lighting' | 'macro' | 'firmware';
+export type TabId =
+  | 'customize'
+  | 'pointer'
+  | 'lighting'
+  | 'advanced'
+  | 'angle'
+  | 'macro'
+  | 'firmware';
 
 export type ActionCategory =
   | 'mousekeys'
   | 'basickeys'
   | 'shortcuts'
+  | 'combinations'
   | 'multimedia'
   | 'macro'
   | 'dpi'
+  | 'polling'
+  | 'gaming'
+  | 'profile'
   | 'disable';
 
 export interface DockCategory {

@@ -84,6 +84,32 @@
   function setLod(lod: number) {
     onChange((prev) => ({ ...prev, lod }));
   }
+
+  function setXySplit(val: boolean) {
+    onChange((prev) => ({ ...prev, xy_split: val }));
+  }
+
+  function setDpiX(index: number, val: number) {
+    const clamped = clamp(Math.round(val / 100) * 100, 100, 19000);
+    onChange((prev) => {
+      const nextStages = [...prev.dpi_stages];
+      nextStages[index] = { ...nextStages[index], x: clamped };
+      return { ...prev, dpi_stages: nextStages };
+    });
+  }
+
+  function setDpiY(index: number, val: number) {
+    const clamped = clamp(Math.round(val / 100) * 100, 100, 19000);
+    onChange((prev) => {
+      const nextStages = [...prev.dpi_stages];
+      nextStages[index] = { ...nextStages[index], y: clamped };
+      return { ...prev, dpi_stages: nextStages };
+    });
+  }
+
+  function setCompetitiveMode(val: boolean) {
+    onChange((prev) => ({ ...prev, competitive_mode: val }));
+  }
 </script>
 
 <div class="flex-1 overflow-y-auto p-8">
@@ -113,6 +139,15 @@
         {:else}
           <span class="rounded-full border border-edge bg-zinc-900 px-3 py-1 text-[11px] font-semibold text-ink-dim">Max {maxStages} Stages</span>
         {/if}
+        <button
+          type="button"
+          onclick={() => setXySplit(!draft.xy_split)}
+          class="flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold transition {draft.xy_split ? 'border-glorious/60 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.15)]' : 'border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
+          aria-pressed={draft.xy_split}
+          title="X/Y Split DPI"
+        >
+          <span>X/Y Split</span>
+        </button>
       </div>
 
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -192,22 +227,59 @@
             </div>
 
             <!-- Number input and DPI label -->
-            <div class="mb-3 flex items-center justify-between gap-2">
-              <input
-                type="number"
-                min="100"
-                max="19000"
-                step="100"
-                value={stage.value}
-                onclick={(e) => e.stopPropagation()}
-                oninput={(e) => {
-                  const val = parseInt(e.currentTarget.value, 10);
-                  if (!isNaN(val)) setDpiValue(i, val);
-                }}
-                class="w-24 rounded-lg border border-edge bg-card px-2 py-1 text-base font-extrabold text-ink focus:border-glorious focus:outline-none"
-              />
-              <span class="text-xs font-semibold text-ink-faint">DPI</span>
-            </div>
+            {#if draft.xy_split}
+              <div class="mb-3 flex items-center gap-2">
+                <div class="flex-1">
+                  <span class="block text-[10px] font-semibold text-ink-faint mb-0.5">X DPI</span>
+                  <input
+                    type="number"
+                    min="100"
+                    max="19000"
+                    step="100"
+                    value={stage.x ?? stage.value}
+                    onclick={(e) => e.stopPropagation()}
+                    oninput={(e) => {
+                      const val = parseInt(e.currentTarget.value, 10);
+                      if (!isNaN(val)) setDpiX(i, val);
+                    }}
+                    class="w-full rounded-lg border border-edge bg-card px-2 py-1 text-sm font-extrabold text-ink focus:border-glorious focus:outline-none"
+                  />
+                </div>
+                <div class="flex-1">
+                  <span class="block text-[10px] font-semibold text-ink-faint mb-0.5">Y DPI</span>
+                  <input
+                    type="number"
+                    min="100"
+                    max="19000"
+                    step="100"
+                    value={stage.y ?? stage.value}
+                    onclick={(e) => e.stopPropagation()}
+                    oninput={(e) => {
+                      const val = parseInt(e.currentTarget.value, 10);
+                      if (!isNaN(val)) setDpiY(i, val);
+                    }}
+                    class="w-full rounded-lg border border-edge bg-card px-2 py-1 text-sm font-extrabold text-ink focus:border-glorious focus:outline-none"
+                  />
+                </div>
+              </div>
+            {:else}
+              <div class="mb-3 flex items-center justify-between gap-2">
+                <input
+                  type="number"
+                  min="100"
+                  max="19000"
+                  step="100"
+                  value={stage.value}
+                  onclick={(e) => e.stopPropagation()}
+                  oninput={(e) => {
+                    const val = parseInt(e.currentTarget.value, 10);
+                    if (!isNaN(val)) setDpiValue(i, val);
+                  }}
+                  class="w-24 rounded-lg border border-edge bg-card px-2 py-1 text-base font-extrabold text-ink focus:border-glorious focus:outline-none"
+                />
+                <span class="text-xs font-semibold text-ink-faint">DPI</span>
+              </div>
+            {/if}
 
             <!-- Slider -->
             <input
@@ -259,6 +331,35 @@
             {rate} Hz
           </button>
         {/each}
+      </div>
+    </section>
+
+    <!-- Sensor Tracking Mode -->
+    <section class="rounded-2xl border border-edge bg-card p-6">
+      <div class="mb-4">
+        <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">SENSOR TRACKING MODE</h3>
+        <p class="mt-1 text-xs text-ink-dim">Choose between balanced power and competitive latency.</p>
+      </div>
+
+      <div class="flex gap-3">
+        <button
+          type="button"
+          onclick={() => setCompetitiveMode(false)}
+          class="flex-1 rounded-xl border px-4 py-3 text-xs font-bold transition text-left {!draft.competitive_mode ? 'border-glorious/60 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.25)]' : 'border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
+          aria-pressed={!draft.competitive_mode}
+        >
+          <div class="mb-1 font-black text-xs tracking-wide">Standard Mode</div>
+          <div class="text-[11px] leading-snug opacity-90">Optimal power consumption and battery life.</div>
+        </button>
+        <button
+          type="button"
+          onclick={() => setCompetitiveMode(true)}
+          class="flex-1 rounded-xl border px-4 py-3 text-xs font-bold transition text-left {draft.competitive_mode ? 'border-glorious/60 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.25)]' : 'border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
+          aria-pressed={draft.competitive_mode}
+        >
+          <div class="mb-1 font-black text-xs tracking-wide">Competitive Mode</div>
+          <div class="text-[11px] leading-snug opacity-90">Ultra-low motion latency sensor sampling for competitive play.</div>
+        </button>
       </div>
     </section>
 
