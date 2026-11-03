@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PinId, ActionCategory, PinAction } from '../lib/types';
+  import type { DeviceCapabilities, PinId, ActionCategory, PinAction } from '../lib/types';
   import { DOCK_CATEGORIES, DOCK_ACTIONS, PIN_LABELS, loadMacros } from '../lib/actions';
 
   interface Props {
@@ -7,9 +7,10 @@
     mappings: PinAction[];
     onAssign: (category: ActionCategory, action: string) => void;
     leftClickLocked?: boolean;
+    caps?: DeviceCapabilities;
   }
 
-  let { selectedPin, mappings, onAssign, leftClickLocked = false }: Props = $props();
+  let { selectedPin, mappings, onAssign, leftClickLocked = false, caps }: Props = $props();
 
   let activeCategory = $state<ActionCategory>('mousekeys');
   let shortcutFilter = $state<'all' | 'win' | 'mac'>('all');
@@ -23,6 +24,19 @@
   // Combinations local state
   let comboMods = $state({ ctrl: false, shift: false, alt: false, win: false });
   let comboTarget = $state('S');
+
+  const profileActions = $derived(
+    (DOCK_ACTIONS['profile'] ?? []).filter((a) => {
+      const m = /^profile:(\d+)$/i.exec(a.id);
+      if (!m) return true;
+      const n = parseInt(m[1], 10);
+      return n <= (caps?.maxProfiles ?? 5);
+    })
+  );
+
+  const categoryActions = $derived(
+    activeCategory === 'profile' ? profileActions : (DOCK_ACTIONS[activeCategory] ?? [])
+  );
 
   const currentMapping = $derived(
     selectedPin ? mappings.find((m) => m.pin === selectedPin) : null
@@ -186,6 +200,12 @@
             />
           </div>
 
+          {#if !caps?.hasGamingTurbo}
+            <div class="rounded-xl border border-amber-500/40 bg-amber-950/40 px-3 py-2 text-[11px] leading-snug text-amber-300">
+              Note: Model O Wireless MCU does not store rapid fire on-board; this is active only while software launcher runs.
+            </div>
+          {/if}
+
           <button
             type="button"
             onclick={applyTurbo}
@@ -299,7 +319,7 @@
         </div>
       {:else}
         <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1.5 max-h-[135px] overflow-y-auto pr-1">
-          {#each DOCK_ACTIONS[activeCategory] ?? [] as action (action.id)}
+          {#each categoryActions as action (action.id)}
             <button
               type="button"
               class="flex items-center justify-center rounded-xl border border-edge bg-canvas/60 px-2.5 py-2 text-center text-xs font-medium text-ink transition hover:border-glorious hover:bg-glorious/10 hover:text-glorious disabled:cursor-not-allowed disabled:opacity-40"

@@ -8,9 +8,10 @@
     onChange: (updater: (draft: SettingsDraft) => SettingsDraft) => void;
     onFactoryReset?: () => void;
     device?: DeviceView | null;
+    caps?: import('../lib/types').DeviceCapabilities;
   }
 
-  let { draft, onChange, onFactoryReset, device = null }: Props = $props();
+  let { draft, onChange, onFactoryReset, device = null, caps }: Props = $props();
 
   const LOD_OPTIONS = [
     { value: 1, label: '1 mm', hint: 'Low lift-off' },
@@ -149,28 +150,45 @@
       </div>
 
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {@render toggleRow(
-          'Angle Snapping',
-          'Locks near-horizontal or near-vertical movement to a straight line.',
-          draft.angle_snap,
-          () => onChange((prev) => ({ ...prev, angle_snap: !prev.angle_snap })),
-        )}
-        {@render toggleRow(
-          'Ripple Control',
-          'Tames click and scroll spam so rapid inputs stay consistent.',
-          draft.ripple_control,
-          () =>
-            onChange((prev) => ({
-              ...prev,
-              ripple_control: !prev.ripple_control,
-            })),
-        )}
-        {@render toggleRow(
-          'Motion Sync',
-          'Aligns sensor sampling with the USB report interval for smoother sweeps.',
-          draft.motion_sync,
-          () => onChange((prev) => ({ ...prev, motion_sync: !prev.motion_sync })),
-        )}
+        {#if caps?.hasAngleSnapping}
+          {@render toggleRow(
+            'Angle Snapping',
+            'Locks near-horizontal or near-vertical movement to a straight line.',
+            draft.angle_snap,
+            () => onChange((prev) => ({ ...prev, angle_snap: !prev.angle_snap })),
+          )}
+        {:else}
+          <div class="rounded-xl border border-amber-500/40 bg-amber-950/40 px-4 py-3 text-[11px] leading-snug text-amber-300">
+            <div class="font-bold">Angle Snapping</div>
+            <div>Hardware unsupported on {device?.name ?? 'this device'} (Requires Model O 2 / BAMF 2.0)</div>
+          </div>
+        {/if}
+        {#if caps?.hasRippleControl}
+          {@render toggleRow(
+            'Ripple Control',
+            'Tames click and scroll spam so rapid inputs stay consistent.',
+            draft.ripple_control,
+            () => onChange((prev) => ({ ...prev, ripple_control: !prev.ripple_control })),
+          )}
+        {:else}
+          <div class="rounded-xl border border-amber-500/40 bg-amber-950/40 px-4 py-3 text-[11px] leading-snug text-amber-300">
+            <div class="font-bold">Ripple Control</div>
+            <div>Hardware unsupported on {device?.name ?? 'this device'} (Requires Model O 2 / BAMF 2.0)</div>
+          </div>
+        {/if}
+        {#if caps?.hasMotionSync}
+          {@render toggleRow(
+            'Motion Sync',
+            'Aligns sensor sampling with the USB report interval for smoother sweeps.',
+            draft.motion_sync,
+            () => onChange((prev) => ({ ...prev, motion_sync: !prev.motion_sync })),
+          )}
+        {:else}
+          <div class="rounded-xl border border-amber-500/40 bg-amber-950/40 px-4 py-3 text-[11px] leading-snug text-amber-300">
+            <div class="font-bold">Motion Sync</div>
+            <div>Hardware unsupported on {device?.name ?? 'this device'} (Requires Model O 2 / BAMF 2.0)</div>
+          </div>
+        {/if}
         {@render toggleRow(
           'Left Click Lock',
           'Safeguard that keeps the left click usable even if a profile binding disables it.',

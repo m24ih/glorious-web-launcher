@@ -111,6 +111,23 @@ export interface ConnectionView {
   path: string;
 }
 
+export interface DeviceCapabilities {
+  maxProfiles: number;
+  maxDpiStages: number;
+  minDpi: number;
+  maxDpi: number;
+  pollingRates: number[];
+  supportedLods: number[];
+  hasAngleSnapping: boolean;
+  hasRippleControl: boolean;
+  hasMotionSync: boolean;
+  hasSensorAngle: boolean;
+  hasCompetitiveMode: boolean;
+  hasXySplitDpi: boolean;
+  hasGamingTurbo: boolean;
+  hasLeftClickLock: boolean;
+}
+
 export interface DeviceView {
   slug: string;
   name: string;

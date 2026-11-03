@@ -1,27 +1,27 @@
 <script lang="ts">
   import { Plus, Trash2 } from 'lucide-svelte';
   import type { SettingsDraft } from '../lib/types';
-  import type { DeviceView } from '../lib/types';
+  import type { DeviceCapabilities, DeviceView } from '../lib/types';
   import { DPI_COLORS, clamp } from '../lib/actions';
 
   interface Props {
     draft: SettingsDraft;
     onChange: (updater: (draft: SettingsDraft) => SettingsDraft) => void;
     device?: DeviceView | null;
+    caps?: DeviceCapabilities;
   }
 
-  let { draft, onChange, device = null }: Props = $props();
+  let { draft, onChange, device = null, caps }: Props = $props();
 
-  const maxStages = $derived((device?.slug?.startsWith('model-o') || device?.slug?.startsWith('model-d')) ? 6 : 8);
-
-  const POLLING_RATES = [125, 250, 500, 1000] as const;
-  const LOD_OPTIONS = [
-    { value: 1, label: '1 mm' },
-    { value: 2, label: '2 mm' },
-  ];
+  const stageLimit = $derived(Math.min(caps?.maxDpiStages ?? 8, 8));
+  const pollingRates = $derived(caps?.pollingRates ?? [125, 250, 500, 1000]);
+  const lodRaw = $derived(caps?.supportedLods ?? [1, 2]);
+  const lodOptions = $derived(lodRaw.map((v) => ({ value: v, label: `${v} mm` })));
 
   function setDpiValue(index: number, val: number) {
-    const clamped = clamp(Math.round(val / 100) * 100, 100, 19000);
+    const minDpi = caps?.minDpi ?? 100;
+    const maxDpi = caps?.maxDpi ?? 19000;
+    const clamped = clamp(Math.round(val / 100) * 100, minDpi, maxDpi);
     onChange((prev) => {
       const nextStages = [...prev.dpi_stages];
       nextStages[index] = { ...nextStages[index], value: clamped };
@@ -38,7 +38,7 @@
   }
 
   function addStage() {
-    if (draft.dpi_stages.length >= maxStages) return;
+    if (draft.dpi_stages.length >= stageLimit) return;
     onChange((prev) => {
       const nextIdx = prev.dpi_stages.length;
       const lastStage = prev.dpi_stages[nextIdx - 1];
@@ -90,7 +90,9 @@
   }
 
   function setDpiX(index: number, val: number) {
-    const clamped = clamp(Math.round(val / 100) * 100, 100, 19000);
+    const minDpi = caps?.minDpi ?? 100;
+    const maxDpi = caps?.maxDpi ?? 19000;
+    const clamped = clamp(Math.round(val / 100) * 100, minDpi, maxDpi);
     onChange((prev) => {
       const nextStages = [...prev.dpi_stages];
       nextStages[index] = { ...nextStages[index], x: clamped };
@@ -99,7 +101,9 @@
   }
 
   function setDpiY(index: number, val: number) {
-    const clamped = clamp(Math.round(val / 100) * 100, 100, 19000);
+    const minDpi = caps?.minDpi ?? 100;
+    const maxDpi = caps?.maxDpi ?? 19000;
+    const clamped = clamp(Math.round(val / 100) * 100, minDpi, maxDpi);
     onChange((prev) => {
       const nextStages = [...prev.dpi_stages];
       nextStages[index] = { ...nextStages[index], y: clamped };
@@ -127,7 +131,7 @@
           <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">DPI STAGES</h3>
           <span class="text-xs text-ink-dim">Active Stage: {draft.active_dpi_stage} (of {draft.dpi_stages.length})</span>
         </div>
-        {#if draft.dpi_stages.length < maxStages}
+        {#if draft.dpi_stages.length < stageLimit}
           <button
             type="button"
             onclick={addStage}
@@ -137,8 +141,9 @@
             <span>Add Stage</span>
           </button>
         {:else}
-          <span class="rounded-full border border-edge bg-zinc-900 px-3 py-1 text-[11px] font-semibold text-ink-dim">Max {maxStages} Stages</span>
+          <span class="rounded-full border border-edge bg-zinc-900 px-3 py-1 text-[11px] font-semibold text-ink-dim">Max {stageLimit} Stages</span>
         {/if}
+        {#if caps?.hasXySplitDpi}
         <button
           type="button"
           onclick={() => setXySplit(!draft.xy_split)}
@@ -148,6 +153,7 @@
         >
           <span>X/Y Split</span>
         </button>
+        {/if}
       </div>
 
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -227,14 +233,14 @@
             </div>
 
             <!-- Number input and DPI label -->
-            {#if draft.xy_split}
+            {#if draft.xy_split && caps?.hasXySplitDpi}
               <div class="mb-3 flex items-center gap-2">
                 <div class="flex-1">
                   <span class="block text-[10px] font-semibold text-ink-faint mb-0.5">X DPI</span>
                   <input
                     type="number"
-                    min="100"
-                    max="19000"
+                    min="{caps?.minDpi ?? 100}"
+                    max="{caps?.maxDpi ?? 19000}"
                     step="100"
                     value={stage.x ?? stage.value}
                     onclick={(e) => e.stopPropagation()}
@@ -249,8 +255,8 @@
                   <span class="block text-[10px] font-semibold text-ink-faint mb-0.5">Y DPI</span>
                   <input
                     type="number"
-                    min="100"
-                    max="19000"
+                    min="{caps?.minDpi ?? 100}"
+                    max="{caps?.maxDpi ?? 19000}"
                     step="100"
                     value={stage.y ?? stage.value}
                     onclick={(e) => e.stopPropagation()}
@@ -266,8 +272,8 @@
               <div class="mb-3 flex items-center justify-between gap-2">
                 <input
                   type="number"
-                  min="100"
-                  max="19000"
+                  min="{caps?.minDpi ?? 100}"
+                  max="{caps?.maxDpi ?? 19000}"
                   step="100"
                   value={stage.value}
                   onclick={(e) => e.stopPropagation()}
@@ -284,11 +290,11 @@
             <!-- Slider -->
             <input
               type="range"
-              min="100"
-              max="19000"
+              min="{caps?.minDpi ?? 100}"
+              max="{caps?.maxDpi ?? 19000}"
               step="100"
               value={stage.value}
-              style="--fill: {((stage.value - 100) / (19000 - 100)) * 100}%"
+              style="--fill: {((stage.value - (caps?.minDpi ?? 100)) / ((caps?.maxDpi ?? 19000) - (caps?.minDpi ?? 100))) * 100}%"
               onclick={(e) => e.stopPropagation()}
               oninput={(e) => setDpiValue(i, parseInt(e.currentTarget.value, 10))}
               class="w-full"
@@ -296,7 +302,7 @@
           </div>
         {/each}
 
-        {#if draft.dpi_stages.length < maxStages}
+        {#if draft.dpi_stages.length < stageLimit}
           <button
             type="button"
             onclick={addStage}
@@ -305,7 +311,7 @@
             <div class="flex h-8 w-8 items-center justify-center rounded-full border border-edge bg-card">
               <Plus size={16} />
             </div>
-            <span class="text-xs font-bold">Add Stage ({draft.dpi_stages.length}/{maxStages})</span>
+            <span class="text-xs font-bold">Add Stage ({draft.dpi_stages.length}/{stageLimit})</span>
           </button>
         {/if}
       </div>
@@ -319,7 +325,7 @@
       </div>
 
       <div class="flex flex-wrap gap-2.5">
-        {#each POLLING_RATES as rate (rate)}
+        {#each pollingRates as rate (rate)}
           {@const isSelected = draft.polling_rate === rate}
           <button
             type="button"
@@ -334,6 +340,7 @@
       </div>
     </section>
 
+    {#if caps?.hasCompetitiveMode}
     <!-- Sensor Tracking Mode -->
     <section class="rounded-2xl border border-edge bg-card p-6">
       <div class="mb-4">
@@ -362,6 +369,7 @@
         </button>
       </div>
     </section>
+    {/if}
 
     <!-- Debounce Time & LOD in a two-column row -->
     <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -401,7 +409,7 @@
         </div>
 
         <div class="flex gap-3">
-          {#each LOD_OPTIONS as opt (opt.value)}
+          {#each lodOptions as opt (opt.value)}
             {@const isSelected = draft.lod === opt.value}
             <button
               type="button"

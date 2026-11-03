@@ -5,6 +5,8 @@ import type {
   ActionCategory,
   ButtonAction,
   ButtonBinding,
+  DeviceCapabilities,
+  DeviceView,
   DockAction,
   DockCategory,
   DpiStage,
@@ -20,6 +22,56 @@ import type {
 } from './types';
 
 export const LAUNCHER_VERSION = '0.1.0';
+
+export function getDeviceCapabilities(device?: DeviceView | null): DeviceCapabilities {
+  const slug = device?.slug ?? '';
+  const isGen1Wireless =
+    slug === 'model-o-wireless' ||
+    slug === 'model-o-minus-wireless' ||
+    slug === 'model-d-wireless' ||
+    slug === 'model-d-minus-wireless' ||
+    (slug && (slug.includes('sinowealth') || slug.includes('sinowealth')));
+  const isSinowealthGen1 = slug.includes('sinowealth');
+  const isGen1 = isGen1Wireless || isSinowealthGen1;
+  const isGen2Pro = !isGen1 && (slug.includes('pro') || slug.includes('bamf') || slug.includes('2.0'));
+
+  if (isGen2Pro) {
+    return {
+      maxProfiles: 5,
+      maxDpiStages: 8,
+      minDpi: 50,
+      maxDpi: 26000,
+      pollingRates: [125, 250, 500, 1000, 2000, 4000, 8000],
+      supportedLods: [1, 2],
+      hasAngleSnapping: true,
+      hasRippleControl: true,
+      hasMotionSync: true,
+      hasSensorAngle: true,
+      hasCompetitiveMode: true,
+      hasXySplitDpi: true,
+      hasGamingTurbo: true,
+      hasLeftClickLock: true,
+    };
+  }
+
+  // Default / Gen 1 (Model O Wireless and Sinowealth-based 1st gen)
+  return {
+    maxProfiles: 3,
+    maxDpiStages: 4,
+    minDpi: 100,
+    maxDpi: 19000,
+    pollingRates: [125, 250, 500, 1000],
+    supportedLods: [1, 2],
+    hasAngleSnapping: false,
+    hasRippleControl: false,
+    hasMotionSync: false,
+    hasSensorAngle: false,
+    hasCompetitiveMode: false,
+    hasXySplitDpi: false,
+    hasGamingTurbo: false,
+    hasLeftClickLock: true,
+  };
+}
 
 /* ── Stage pins ─────────────────────────────────────────────────────────── */
 

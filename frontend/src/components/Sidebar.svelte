@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Battery, BatteryFull, BatteryLow, BatteryMedium, Bluetooth, Compass, Cpu, Move, MousePointerClick, Palette, Sliders, Usb, Workflow, Zap } from 'lucide-svelte';
-  import type { DeviceView, TabId } from '../lib/types';
+  import type { DeviceView, DeviceCapabilities, TabId } from '../lib/types';
   import { LAUNCHER_VERSION } from '../lib/actions';
 
   interface Props {
@@ -8,12 +8,13 @@
     wsStatus: 'connecting' | 'live' | 'offline';
     activeTab: TabId;
     activeProfile: number;
+    caps?: DeviceCapabilities;
     onTabChange: (tab: TabId) => void;
     onProfileChange: (profile: number) => void;
     serviceVersion?: string;
   }
 
-  let { device, wsStatus, activeTab, activeProfile, onTabChange, onProfileChange, serviceVersion = LAUNCHER_VERSION }: Props = $props();
+  let { device, wsStatus, activeTab, activeProfile, caps, onTabChange, onProfileChange, serviceVersion = LAUNCHER_VERSION }: Props = $props();
 
   const TABS: Array<{ id: TabId; label: string; icon: typeof Move }> = [
     { id: 'customize', label: 'Customize', icon: MousePointerClick },
@@ -24,6 +25,8 @@
     { id: 'macro', label: 'Macro', icon: Workflow },
     { id: 'firmware', label: 'Firmware', icon: Cpu },
   ];
+
+  const visibleTabs = $derived(TABS.filter((t) => !(t.id === 'angle' && !caps?.hasSensorAngle)));
 
   const statusColor = $derived(
     device?.connected && device.status === 'connected' ? '#2dff6a' : '#6b6b75',
@@ -122,7 +125,7 @@
   <div>
     <div class="mb-2 px-1 text-[10px] font-semibold tracking-[0.18em] text-ink-faint">PROFILE</div>
     <div class="flex gap-2">
-      {#each [1, 2, 3] as n (n)}
+      {#each Array.from({ length: caps?.maxProfiles ?? 3 }, (_, i) => i + 1) as n (n)}
         <button
           type="button"
           class="flex-1 rounded-full border py-1.5 text-xs font-semibold {activeProfile === n
@@ -138,7 +141,7 @@
 
   <!-- Navigation -->
   <nav class="flex flex-col gap-1 border-t border-edge pt-4">
-    {#each TABS as tab (tab.id)}
+    {#each visibleTabs as tab (tab.id)}
       {@const Icon = tab.icon}
       <button
         type="button"

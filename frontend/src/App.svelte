@@ -34,7 +34,9 @@
     LAUNCHER_VERSION,
     pinActionsToBindings,
     bindingsToPinActions,
+    getDeviceCapabilities,
   } from './lib/actions';
+  import type { DeviceCapabilities } from './lib/types';
 
   // State management
   let device = $state<DeviceView | null>(null);
@@ -50,6 +52,13 @@
   let toastMessage = $state<string | null>(null);
 
   const canApply = $derived(device !== null && !applying);
+  const caps = $derived<DeviceCapabilities>(getDeviceCapabilities(device));
+
+  $effect(() => {
+    if (caps.maxProfiles > 0 && activeProfile > caps.maxProfiles) {
+      activeProfile = caps.maxProfiles;
+    }
+  });
 
   /** Factory defaults, mirroring the service's sensible-default profile. */
   const FACTORY_DEFAULTS = {
@@ -431,6 +440,7 @@
     {wsStatus}
     {activeTab}
     {activeProfile}
+    {caps}
     onTabChange={(tab) => (activeTab = tab)}
     onProfileChange={onProfileChange}
     serviceVersion={LAUNCHER_VERSION}
@@ -455,6 +465,7 @@
         {selectedPin}
         {mappings}
         {onAssign}
+        {caps}
         leftClickLocked={draft.left_click_lock}
       />
     {:else}
@@ -493,13 +504,14 @@
 
       <!-- Tab Content Area -->
       {#if activeTab === 'pointer'}
-        <PointerView {device} {draft} onChange={onDraftChange} />
+        <PointerView {device} {draft} {caps} onChange={onDraftChange} />
       {:else if activeTab === 'lighting'}
         <LightingView {draft} onChange={onDraftChange} onLivePreview={onLightingLivePreview} />
       {:else if activeTab === 'advanced'}
         <AdvancedView
           {device}
           {draft}
+          {caps}
           onChange={onDraftChange}
           onFactoryReset={onFactoryReset}
         />
