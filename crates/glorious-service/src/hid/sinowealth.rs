@@ -945,6 +945,29 @@ pub fn build_button_payload(profile: u8, binding: &ButtonBinding) -> [u8; 10] {
             payload[5] = (*key & 0xFF) as u8;
             payload[6] = (*key >> 8) as u8;
         }
+        ButtonAction::Macro { macro_id, repeat_mode, loop_count } => {
+            match *repeat_mode {
+                1 => {
+                    payload[3] = 0x12;
+                    payload[4] = 0x02;
+                    payload[5] = (*macro_id >> 8) as u8;
+                    payload[6] = (*macro_id & 0xFF) as u8;
+                }
+                2 => {
+                    payload[3] = 0x11;
+                    payload[4] = 0x02;
+                    payload[5] = (*macro_id >> 8) as u8;
+                    payload[6] = (*macro_id & 0xFF) as u8;
+                }
+                _ => {
+                    payload[3] = 0x10;
+                    payload[4] = 0x03;
+                    payload[5] = (*macro_id >> 8) as u8;
+                    payload[6] = (*macro_id & 0xFF) as u8;
+                    payload[7] = *loop_count;
+                }
+            }
+        }
         ButtonAction::Disabled => {
             payload[3] = 0x00;
             payload[4] = 0x00;
@@ -1285,6 +1308,51 @@ mod tests {
         assert_eq!(
             build_button_payload(1, &battery_btn),
             [1, 11, 0, 0x0C, 0x01, 0x01, 0, 0, 0, 0]
+        );
+
+        // Macro payload with repeat_mode 0 (default) and loop_count 2
+        let macro_btn = ButtonBinding {
+            pin: "macro".into(),
+            button_id: 12,
+            action: ButtonAction::Macro {
+                macro_id: 0x0123,
+                repeat_mode: 0,
+                loop_count: 2,
+            },
+        };
+        assert_eq!(
+            build_button_payload(2, &macro_btn),
+            [2, 12, 0, 0x10, 0x03, 0x01, 0x23, 2, 0, 0]
+        );
+
+        // Macro repeat_mode 1 (toggle)
+        let macro_toggle = ButtonBinding {
+            pin: "macro_tog".into(),
+            button_id: 13,
+            action: ButtonAction::Macro {
+                macro_id: 0x00AB,
+                repeat_mode: 1,
+                loop_count: 1,
+            },
+        };
+        assert_eq!(
+            build_button_payload(1, &macro_toggle),
+            [1, 13, 0, 0x12, 0x02, 0x00, 0xAB, 0, 0, 0]
+        );
+
+        // Macro repeat_mode 2 (while holding)
+        let macro_hold = ButtonBinding {
+            pin: "macro_hold".into(),
+            button_id: 14,
+            action: ButtonAction::Macro {
+                macro_id: 0x00CC,
+                repeat_mode: 2,
+                loop_count: 4,
+            },
+        };
+        assert_eq!(
+            build_button_payload(3, &macro_hold),
+            [3, 14, 0, 0x11, 0x02, 0x00, 0xCC, 0, 0, 0]
         );
     }
 }

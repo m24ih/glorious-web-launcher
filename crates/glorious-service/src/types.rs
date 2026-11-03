@@ -55,6 +55,13 @@ pub enum ButtonAction {
     Media {
         key: u16,
     },
+    Macro {
+        macro_id: u16,
+        #[serde(default)]
+        repeat_mode: u8,
+        #[serde(default = "default_macro_loop_count")]
+        loop_count: u8,
+    },
     Disabled,
 }
 
@@ -267,6 +274,68 @@ fn default_color() -> [u8; 3] {
     [255, 0, 0]
 }
 
+fn default_macro_loop_count() -> u8 {
+    1
+}
+
+fn validate_button_binding(binding: &ButtonBinding) -> Result<(), String> {
+    match &binding.action {
+        ButtonAction::Mouse { button } => {
+            let valid = (1..=8).contains(button)
+                || *button == 0x10
+                || *button == 0x11
+                || *button == 0x18
+                || *button == 0x19
+                || *button == 0x0C;
+            if !valid {
+                return Err(format!("invalid mouse button {button}"));
+            }
+        }
+        ButtonAction::Profile { action } => {
+            if *action == 0 || *action > 4 {
+                return Err(format!("invalid profile action {action}"));
+            }
+        }
+        ButtonAction::Keyboard { key_code, .. } => {
+            if *key_code == 0 {
+                return Err("keyboard key_code cannot be 0".to_string());
+            }
+        }
+        ButtonAction::Dpi { action } => {
+            if *action == 0 {
+                return Err("dpi action cannot be 0".to_string());
+            }
+        }
+        ButtonAction::Media { key } => {
+            if *key == 0 {
+                return Err("media key cannot be 0".to_string());
+            }
+        }
+        ButtonAction::Macro { macro_id, repeat_mode, loop_count } => {
+            if *macro_id == 0 {
+                return Err(format!(
+                    "buttons[{}].action.macro_id must be at least 1",
+                    binding.button_id
+                ));
+            }
+            if *repeat_mode > 2 {
+                return Err(format!(
+                    "buttons[{}].action.repeat_mode must be 0 (no repeat), 1 (toggle), or 2 (while holding)",
+                    binding.button_id
+                ));
+            }
+            if *loop_count == 0 {
+                return Err(format!(
+                    "buttons[{}].action.loop_count must be at least 1",
+                    binding.button_id
+                ));
+            }
+        }
+        ButtonAction::Disabled => {}
+    }
+    Ok(())
+}
+
 impl SettingsPatch {
     pub fn is_empty(&self) -> bool {
         self.profile.is_none()
@@ -391,40 +460,7 @@ impl SettingsPatch {
                 if b.button_id == 0 || b.button_id > 32 {
                     return Err(format!("button_id must be 1-32, got {}", b.button_id));
                 }
-                match &b.action {
-                    ButtonAction::Mouse { button } => {
-                        let valid = (1..=8).contains(button)
-                            || *button == 0x10
-                            || *button == 0x11
-                            || *button == 0x18
-                            || *button == 0x19
-                            || *button == 0x0C;
-                        if !valid {
-                            return Err(format!("invalid mouse button {button}"));
-                        }
-                    }
-                    ButtonAction::Profile { action } => {
-                        if *action == 0 || *action > 4 {
-                            return Err(format!("invalid profile action {action}"));
-                        }
-                    }
-                    ButtonAction::Keyboard { key_code, .. } => {
-                        if *key_code == 0 {
-                            return Err("keyboard key_code cannot be 0".to_string());
-                        }
-                    }
-                    ButtonAction::Dpi { action } => {
-                        if *action == 0 {
-                            return Err("dpi action cannot be 0".to_string());
-                        }
-                    }
-                    ButtonAction::Media { key } => {
-                        if *key == 0 {
-                            return Err("media key cannot be 0".to_string());
-                        }
-                    }
-                    ButtonAction::Disabled => {}
-                }
+                validate_button_binding(b)?;
             }
         }
 
@@ -706,5 +742,74 @@ mod tests {
             };
             assert!(bad_profile.validate().is_err(), "profile action {bad_action} should be invalid");
         }
+    }
+
+    #[test]
+    fn deserializes_macro_button_action() {
+        let json = r#"{"pin":"m","button_id":2,"action":{"type":"macro","macro_id":5,"repeat_mode":1,"loop_count":3}}"#;
+        let binding: ButtonBinding = serde_json::from_str(json).unwrap();
+        assert_eq!(binding.button_id, 2);
+        assert!(matches!(binding.action, ButtonAction::Macro { macro_id: 5, repeat_mode: 1, loop_count: 3 }));
+    }
+
+    #[test]
+    fn macro_defaults_to_loop_count_1() {
+        let json = r#"{"pin":"m","button_id":3,"action":{"type":"macro","macro_id":10}}"#;
+        let binding: ButtonBinding = serde_json::from_str(json).unwrap();
+        match binding.action {
+            ButtonAction::Macro { macro_id, repeat_mode, loop_count } => {
+                assert_eq!(macro_id, 10);
+                assert_eq!(repeat_mode, 0); // default
+                assert_eq!(loop_count, 1);   // default
+            }
+            _ => panic!("expected Macro"),
+        }
+    }
+
+    #[test]
+    fn validates_macro_button_bindings() {
+        // valid
+        let good = SettingsPatch {
+            buttons: Some(vec![ButtonBinding {
+                pin: "m".into(),
+                button_id: 2,
+                action: ButtonAction::Macro { macro_id: 3, repeat_mode: 2, loop_count: 5 },
+            }]),
+            ..Default::default()
+        };
+        assert!(good.validate().is_ok());
+
+        // macro_id == 0
+        let bad_id = SettingsPatch {
+            buttons: Some(vec![ButtonBinding {
+                pin: "m".into(),
+                button_id: 1,
+                action: ButtonAction::Macro { macro_id: 0, repeat_mode: 0, loop_count: 1 },
+            }]),
+            ..Default::default()
+        };
+        assert!(bad_id.validate().is_err());
+
+        // repeat_mode > 2
+        let bad_repeat = SettingsPatch {
+            buttons: Some(vec![ButtonBinding {
+                pin: "m".into(),
+                button_id: 1,
+                action: ButtonAction::Macro { macro_id: 2, repeat_mode: 3, loop_count: 1 },
+            }]),
+            ..Default::default()
+        };
+        assert!(bad_repeat.validate().is_err());
+
+        // loop_count == 0
+        let bad_loop = SettingsPatch {
+            buttons: Some(vec![ButtonBinding {
+                pin: "m".into(),
+                button_id: 1,
+                action: ButtonAction::Macro { macro_id: 2, repeat_mode: 1, loop_count: 0 },
+            }]),
+            ..Default::default()
+        };
+        assert!(bad_loop.validate().is_err());
     }
 }
