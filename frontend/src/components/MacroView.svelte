@@ -19,10 +19,15 @@
     Settings,
     Zap,
     LogOut,
+    Info,
+    X,
+    ChevronDown,
+    Save,
+    RotateCcw,
   } from 'lucide-svelte';
   import { onDestroy } from 'svelte';
   import { loadMacros, saveMacros, getMacroActionLabel } from '../lib/actions';
-  import type { MacroDefinition, MacroEvent } from '../lib/types';
+  import type { MacroDefinition, MacroEvent, MacroRepeatMode } from '../lib/types';
 
   interface Props {
     activeTab: string;
@@ -33,7 +38,7 @@
 
   // State: loaded macros from storage + dirty edits
   let macros = $state<MacroDefinition[]>(loadMacros());
-  let editingId: string | null = null; // which macro we're editing
+  let editingId = $state<string | null>(null); // which macro we're editing
   let isRecording = $state<boolean>(false);
   let recordedEvents: MacroEvent[] = $state<MacroEvent[]>([]);
   let recordStart = $state<number | null>(null);
@@ -44,9 +49,16 @@
   // UI state
   let newMacroName = $state<string>('');
   let newMacroSlot = $state<number>(1);
-  let repeatMode = $state<'no_repeat' | 'toggle' | 'while_holding'>('no_repeat');
+  let repeatMode = $state<MacroRepeatMode>('no_repeat');
   let loopCount = $state<number>(1);
   let searchQuery = $state<string>('');
+
+  // Time Delay Mode: 'disable' | 'dynamic' | 'fixed'
+  let timeDelayMode = $state<'disable' | 'dynamic' | 'fixed'>('dynamic');
+  let fixedDelayMs = $state<number>(50);
+
+  // Loop settings
+  let stopOnAnyKey = $state<boolean>(false);
 
   // Derived: filtered/visible macros
   let visibleMacros = $derived(
@@ -118,6 +130,17 @@
 
   function stopRecording() {
     isRecording = false;
+    // Merge recorded events into timeline with proper delay mode handling
+    if (recordedEvents.length > 0) {
+      const eventsToAdd = recordedEvents.map((ev, idx) => ({
+        ...ev,
+        // Apply delay mode
+        delay: timeDelayMode === 'fixed' ? fixedDelayMs : ev.delay,
+      }));
+      timeline = [...timeline, ...eventsToAdd];
+      recordedEvents = [];
+      showToast(`Recorded ${eventsToAdd.length} events`);
+    }
   }
 
   // Add a new empty macro
@@ -134,7 +157,15 @@
     macros = [...macros, newMacro];
     editingId = newMacro.id;
     timeline = [];
+    newMacroName = newMacro.name;
+    newMacroSlot = newMacro.slot;
+    repeatMode = newMacro.repeatMode;
+    loopCount = newMacro.loopCount;
+    timeDelayMode = 'dynamic';
+    fixedDelayMs = 50;
+    stopOnAnyKey = false;
     saveMacros(macros);
+    showToast('New macro created');
   }
 
   // Delete a macro
@@ -143,8 +174,16 @@
     if (editingId === id) {
       editingId = null;
       timeline = [];
+      newMacroName = '';
+      newMacroSlot = 1;
+      repeatMode = 'no_repeat';
+      loopCount = 1;
+      timeDelayMode = 'dynamic';
+      fixedDelayMs = 50;
+      stopOnAnyKey = false;
     }
     saveMacros(macros);
+    showToast('Macro deleted');
   }
 
   // Duplicate a macro
@@ -161,18 +200,18 @@
     };
     macros = [...macros, duplicated];
     saveMacros(macros);
+    showToast('Macro duplicated');
   }
 
   // Import macros from JSON
   function importMacros() {
-    // In a real app we'd use an <input type="file"> but for now simulate
-    // with a prompt. In production this would be triggered by the Export/Import buttons.
     const json = window.prompt('Paste JSON to import:');
     if (json) {
       try {
         const imported: MacroDefinition[] = JSON.parse(json);
         macros = [...macros, ...imported];
         saveMacros(macros);
+        showToast('Macros imported');
       } catch (e) {
         showToast('Invalid JSON format');
       }
@@ -246,6 +285,13 @@
     macros = [...macros.slice(0, macroIndex), updated, ...macros.slice(macroIndex + 1)];
     editingId = null;
     timeline = [];
+    newMacroName = '';
+    newMacroSlot = 1;
+    repeatMode = 'no_repeat';
+    loopCount = 1;
+    timeDelayMode = 'dynamic';
+    fixedDelayMs = 50;
+    stopOnAnyKey = false;
     saveMacros(macros);
     showToast('Macro saved');
   }
@@ -262,6 +308,20 @@
     setTimeout(() => (toastMessage = null), 3000);
   }
 
+  // Quick insert actions
+  function insertKeyDown() {
+    timeline = [...timeline, { id: crypto.randomUUID(), type: 'down', key: '', keyCode: undefined, delay: timeDelayMode === 'fixed' ? fixedDelayMs : 0 }];
+  }
+  function insertKeyUp() {
+    timeline = [...timeline, { id: crypto.randomUUID(), type: 'up', key: '', keyCode: undefined, delay: timeDelayMode === 'fixed' ? fixedDelayMs : 0 }];
+  }
+  function insertDelay() {
+    timeline = [...timeline, { id: crypto.randomUUID(), type: 'delay', delay: 50 }];
+  }
+  function insertText() {
+    timeline = [...timeline, { id: crypto.randomUUID(), type: 'text', text: '', delay: timeDelayMode === 'fixed' ? fixedDelayMs : 0 }];
+  }
+
   // State sync handled directly via selectMacro
 
   // Cleanup listeners on destroy
@@ -270,317 +330,605 @@
   });
 </script>
 
-<div class="min-h-screen bg-canvas text-ink p-6">
-
-  <!-- Left Sidebar: Macro List -->
-  <aside class="w-64 shrink-0 bg-panel border-r border-edge p-4 space-y-4">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-lg font-bold">Macro Builder</h2>
-      <button
-        class="rounded border px-2 py-1 text-sm text-ink-dim hover:text-ink"
-        onclick={importMacros}
-        title="Import JSON"
-      >
-        <Search size={14} /> Import
-      </button>
-      <button
-        class="rounded border px-2 py-1 text-sm text-ink-dim hover:text-ink"
-        onclick={exportMacros}
-        title="Export JSON"
-      >
-        <Download size={14} /> Export
-      </button>
-    </div>
-
-    <div>
-      <button
-        class="w-full flex items-center justify-between rounded border px-3 py-2 text-sm font-medium text-ink-dim hover:bg-glorious/10 hover:text-glorious mb-2"
-        onclick={addMacro}
-      >
-        <Plus size={14} /> + Add Macro
-      </button>
-
-      <!-- Search -->
-      <div class="mb-3">
-        <input
-          type="text"
-          placeholder="Search macros..."
-          class="w-full rounded border px-3 py-2 text-sm background-card outline-none"
-          oninput={(e: Event) => (searchQuery = (e.target as HTMLInputElement).value)}
-        />
-      </div>
-
-      {#each visibleMacros as macro}
-      <div
-        class="rounded border px-3 py-2 text-sm flex items-center justify-between border-edge background-card mb-2"
-      >
-        <div class="flex items-center gap-2">
-          <span class="text-[14px] font-medium">{`M${macro.slot}`}</span>
-          <span class="text-xs font-semibold text-glorious capitalize">{getRepeatBadge(
-            macro.repeatMode
-          )}</span>
+<div class="min-h-screen bg-canvas text-ink">
+  <div class="border-b border-edge/60">
+    <div class="mx-auto max-w-[1400px] px-6 lg:px-8">
+      <div class="flex items-start gap-3 rounded-xl border border-glorious/30 bg-amber-950/30 p-4">
+        <Info class="mt-0.5 flex-shrink-0 h-5 w-5 text-glorious" aria-hidden="true" />
+        <div class="flex-1 text-sm text-amber-200 leading-relaxed">
+          <span class="font-semibold text-glorious">Macro Assignment:</span>{' '}
+          To assign a macro, select or save it here, then head over to the <span class="font-medium underline">Customize</span> tab and click any mouse button.
         </div>
-        <span class="text-[11px] text-ink-faint">{macro.events.length} actions</span>
-        <button
-          class="rounded border px-2 py-1 text-[10px] text-ink-dim hover:text-glorious transition"
-          onclick={() => selectMacro(macro.id)}
-          title="Edit macro"
-        >
-          ✎
-        </button>
-        <button
-          class="rounded border px-2 py-1 text-[10px] text-ink-dim hover:text-red-400 transition"
-          onclick={() => deleteMacro(macro.id)}
-          title="Delete macro"
-        >
-          <Trash2 size={12} class="text-red-400" /> Delete
-        </button>
-        <button
-          class="rounded border px-2 py-1 text-[10px] text-ink-dim hover:text-yellow-300 transition"
-          onclick={() => duplicateMacro(macro.id)}
-          title="Duplicate macro"
-        >
-          <Plus size={12} class="text-yellow-300" /> Dup
-        </button>
-      </div>
-      {/each}
-    </div>
-  </aside>
-
-  <!-- Main Area: Macro Editor -->
-  <main class="flex-1 flex flex-col space-y-4 p-6">
-    <!-- Header: Name + Recording + Repeat Mode -->
-    <div class="rounded border p-4 bg-panel border-edge">
-      <div class="flex items-center gap-3 mb-4">
-        <input
-          type="text"
-          bind:value={newMacroName}
-          class="flex-1 rounded border px-3 py-2 text-sm outline-none background-card"
-          placeholder="Macro name"
-        />
-        <button
-          class="rounded border px-3 py-2 text-sm font-medium text-glorious bg-glorious/10 hover:bg-glorious transition"
-          onclick={saveMacro}
-          title="Save macro"
-        >
-          Save
-        </button>
-      </div>
-
-      <!-- Recording control -->
-      <div class="flex items-center gap-2 mb-4">
-        <button
-          class="flex-1 rounded-full p-2 {isRecording ? 'bg-red-500' : 'bg-glorious/10'} text-{isRecording ? 'red-400' : 'glorious'}"
-          onclick={isRecording ? stopRecording : startRecording}
-          title={isRecording ? 'Stop Recording' : 'Record Keystrokes'}
-        >
-          {isRecording ? '■' : '●'}
-        </button>
-        <span class="text-sm text-ink-faint">
-          {isRecording ? 'Recording…' : 'Click keys to record'}
-        </span>
-      </div>
-
-      <!-- Repeat Mode selector -->
-      <div class="flex gap-2 mb-4">
-        <button
-          class="flex-1 rounded border px-3 py-2 text-sm font-medium text-ink-dim hover:bg-glorious/10 {repeatMode === 'no_repeat' ? 'bg-glorious/10 text-glorious' : 'text-ink-dim'}"
-          onclick={() => (repeatMode = 'no_repeat')}
-        >
-          No Repeat
-        </button>
-        <button
-          class="flex-1 rounded border px-3 py-2 text-sm font-medium text-ink-dim hover:bg-glorious/10 {repeatMode === 'toggle' ? 'bg-glorious/10 text-glorious' : 'text-ink-dim'}"
-          onclick={() => (repeatMode = 'toggle')}
-        >
-          Toggle
-        </button>
-        <button
-          class="flex-1 rounded border px-3 py-2 text-sm font-medium text-ink-dim hover:bg-glorious/10 {repeatMode === 'while_holding' ? 'bg-glorious/10 text-glorious' : 'text-ink-dim'}"
-          onclick={() => (repeatMode = 'while_holding')}
-        >
-          Hold
-        </button>
-      </div>
-
-      <!-- Loop Count (only when no_repeat) -->
-      {#if repeatMode === 'no_repeat'}
-      <div class="flex items-center gap-2 mb-4">
-        <span class="text-sm text-ink-faint">Loop Count</span>
-        <input
-          type="number"
-          bind:value={loopCount}
-          min="1"
-          max="100"
-          class="rounded border px-3 py-2 text-sm width-20 outline-none background-card"
-        />
-      </div>
-      {/if}
-
-      <!-- Save & Clear buttons -->
-      <div class="flex gap-2">
-        <button
-          class="flex-1 rounded border px-3 py-2 text-sm font-medium text-glorious bg-glorious/10 hover:bg-glorious transition"
-          onclick={saveMacro}
-          title="Save macro"
-        >
-          Save Macro
-        </button>
-        <button
-          class="flex-1 rounded border px-3 py-2 text-sm font-medium text-ink-dim hover:text-red-400 transition"
-          onclick={clearEvents}
-          title="Clear all events"
-        >
-          Clear All
-        </button>
       </div>
     </div>
+  </div>
 
-    <!-- Timeline / Action Blocks -->
-    <div class="rounded border p-4 bg-panel border-edge">
-      <h3 class="text-semibold text-sm mb-3">Macro Timeline</h3>
+  <!-- Main Content Split: Left Sidebar + Right Workspace -->
+  <div class="mx-auto max-w-[1400px] flex h-[calc(100vh-120px)] overflow-hidden px-6 lg:px-8">
+    <!-- Left Sidebar: Macro List -->
+    <aside class="w-80 shrink-0 bg-panel border-r border-edge flex flex-col">
+      <!-- Sidebar Header -->
+      <div class="border-b border-edge p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-bold tracking-[0.16em] uppercase text-ink-faint">MACRO LIST</h2>
+          <span class="rounded-full border border-edge bg-canvas px-2.5 py-0.5 text-[11px] font-bold text-glorious tabular-nums">
+            {visibleMacros.length} / {macros.length}
+          </span>
+        </div>
+        <button
+          class="w-full flex items-center justify-center gap-2 rounded-xl border border-glorious/40 bg-zinc-900 px-3 py-2 text-sm font-bold text-glorious transition hover:border-glorious hover:bg-glorious/10 shadow-[0_0_10px_rgba(255,184,0,0.15)]"
+          onclick={addMacro}
+        >
+          <Plus size={14} />
+          <span>+ New Macro</span>
+        </button>
+      </div>
 
-      {#if timeline.length === 0}
-      <p class="text-ink-faint text-sm text-center py-8">No actions yet. Click the add buttons below.</p>
+      <!-- Search Input -->
+      <div class="p-4 border-b border-edge">
+        <div class="relative">
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-faint" aria-hidden="true" />
+          <input
+            type="text"
+            placeholder="Search macros..."
+            class="w-full rounded-xl border border-edge bg-canvas pl-10 pr-4 py-2 text-sm outline-none focus:border-glorious focus:ring-1 focus:ring-glorious/30 placeholder:text-ink-faint"
+            oninput={(e: Event) => (searchQuery = (e.target as HTMLInputElement).value)}
+          />
+        </div>
+      </div>
+
+      <!-- Import / Export Buttons -->
+      <div class="p-4 border-b border-edge flex gap-2">
+        <button
+          class="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-edge bg-canvas px-3 py-2 text-sm font-medium text-ink-dim transition hover:border-edge-bright hover:text-ink"
+          onclick={importMacros}
+          title="Import JSON"
+        >
+          <Download size={14} />
+          <span>Import</span>
+        </button>
+        <button
+          class="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-edge bg-canvas px-3 py-2 text-sm font-medium text-ink-dim transition hover:border-edge-bright hover:text-ink"
+          onclick={exportMacros}
+          title="Export JSON"
+        >
+          <Copy size={14} />
+          <span>Export</span>
+        </button>
+      </div>
+
+      <!-- Macro List Items -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-2">
+        {#if visibleMacros.length === 0}
+          <div class="flex flex-col items-center justify-center h-full text-ink-faint py-12">
+            <Palette class="h-12 w-12 mb-3 opacity-30" />
+            <p class="text-sm">No macros found</p>
+            <p class="text-xs mt-1">Click "+ New Macro" to create one</p>
+          </div>
+        {:else}
+          {#each visibleMacros as macro}
+            {@const isSelected = editingId === macro.id}
+            <div
+              role="button"
+              tabindex="0"
+              class="w-full relative rounded-xl p-3 text-left transition cursor-pointer flex items-start gap-3 group {isSelected
+                ? 'border-glorious bg-zinc-900/95 ring-1 ring-glorious/60 shadow-[0_0_18px_rgba(255,184,0,0.20)]'
+                : 'border-edge bg-canvas/60 hover:border-edge-bright hover:bg-card-hover'}"
+              onclick={() => selectMacro(macro.id)}
+              onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectMacro(macro.id); }}
+            >
+              <!-- Slot Pill -->
+              <span class="flex-shrink-0 flex items-center justify-center rounded-full border border-glorious/40 bg-glorious/10 px-2.5 py-1 text-[11px] font-black text-glorious min-w-[3rem]">
+                M{macro.slot}
+              </span>
+
+              <!-- Macro Info -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-sm font-semibold truncate {isSelected ? 'text-ink' : 'text-ink-dim'}">{macro.name}</span>
+                  <span class="flex-shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider {macro.repeatMode === 'no_repeat' ? 'border-edge bg-canvas text-ink-dim' : macro.repeatMode === 'toggle' ? 'border-amber-500/40 bg-amber-950/30 text-amber-300' : 'border-emerald-500/40 bg-emerald-950/30 text-emerald-300'}">
+                    {getRepeatBadge(macro.repeatMode)}
+                  </span>
+                </div>
+                <div class="flex items-center gap-2 text-[11px] text-ink-faint">
+                  <span>{macro.events.length} actions</span>
+                  <span class="hidden sm:inline">•</span>
+                  <span class="hidden sm:inline">Slot {macro.slot}</span>
+                </div>
+              </div>
+
+              <!-- Actions: Edit (Select), Duplicate, Delete -->
+              <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                <button
+                  type="button"
+                  class="rounded-lg p-1.5 text-ink-faint hover:text-glorious hover:bg-glorious/10 transition"
+                  onclick={(e) => { e.stopPropagation(); selectMacro(macro.id); }}
+                  title="Select for editing"
+                  aria-label="Select macro"
+                >
+                  <Key size={14} />
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg p-1.5 text-ink-faint hover:text-yellow-300 hover:bg-yellow-500/10 transition"
+                  onclick={(e) => { e.stopPropagation(); duplicateMacro(macro.id); }}
+                  title="Duplicate macro"
+                  aria-label="Duplicate macro"
+                >
+                  <RotateCcw size={14} />
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg p-1.5 text-ink-faint hover:text-red-400 hover:bg-red-500/10 transition"
+                  onclick={(e) => { e.stopPropagation(); deleteMacro(macro.id); }}
+                  title="Delete macro"
+                  aria-label="Delete macro"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+
+              <!-- Selected indicator -->
+              {#if isSelected}
+                <div class="absolute inset-0 pointer-events-none rounded-xl border-2 border-glorious/50" aria-hidden="true"></div>
+              {/if}
+            </div>
+          {/each}
+        {/if}
+      </div>
+    </aside>
+
+    <!-- Right Workspace -->
+    <main class="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
+      {#if !editingId}
+        <!-- Empty State -->
+        <div class="flex flex-col items-center justify-center h-full text-center">
+          <Palette class="h-20 w-20 text-ink-faint/20 mb-6" />
+          <h3 class="text-lg font-bold text-ink-dim mb-2">Select or Create a Macro</h3>
+          <p class="text-sm text-ink-faint max-w-md">
+            Choose a macro from the sidebar to edit its sequence, or click "+ New Macro" to start fresh.
+          </p>
+          <button
+            class="mt-6 flex items-center gap-2 rounded-xl border border-glorious/40 bg-zinc-900 px-5 py-3 text-sm font-bold text-glorious transition hover:border-glorious hover:bg-glorious/10 shadow-[0_0_10px_rgba(255,184,0,0.15)]"
+            onclick={addMacro}
+          >
+            <Plus size={16} />
+            <span>Create New Macro</span>
+          </button>
+        </div>
       {:else}
-      <div class="space-y-2" role="list">
-        {#each timeline as event, index}
-        <div
-          class="rounded border p-3 flex items-center justify-between bg-card transition"
-          style={event.type === 'down' ? 'border-color: #22c55e;' : event.type === 'up' ? 'border-color: #f87171;' : event.type === 'delay' ? 'border-color: #f59e0b;' : 'border-color: a855f7;'}
-        >
-          <!-- Key Down card -->
-          {#if event.type === 'down'}
-          <div class="flex items-center gap-2">
-            <span class="rounded bg-cyan-500/20 px-2 py-1 text-xs font-medium text-cyan-400">
-              ⇩
-            </span>
-            <span class="text-sm font-medium">{event.key || ''}</span>
+        <!-- Card 1: MACRO SETTINGS & TIME DELAY -->
+        <section class="rounded-2xl border border-edge bg-card p-5">
+          <div class="mb-4 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">MACRO SETTINGS & TIME DELAY</span>
+              <span class="rounded-full border border-edge bg-canvas px-2.5 py-0.5 text-[11px] font-bold text-glorious">
+                Slot M{newMacroSlot}
+              </span>
+            </div>
+            {#if isRecording}
+              <span class="flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-[11px] font-bold text-red-400 animate-pulse">
+                <span class="h-2 w-2 rounded-full bg-red-400"></span>
+                RECORDING
+              </span>
+            {/if}
           </div>
-          <!-- Key Up card -->
-          {/if}
-          {#if event.type === 'up'}
-          <div class="flex items-center gap-2">
-            <span class="rounded bg-rose-500/20 px-2 py-1 text-xs font-medium text-rose-400">
-              ⇫
-            </span>
-            <span class="text-sm font-medium">{event.key || ''}</span>
-          </div>
-          <!-- Delay card -->
-          {/if}
-          {#if event.type === 'delay'}
-          <div class="flex items-center gap-2">
-            <span class="rounded bg-amber-500/20 px-2 py-1 text-xs font-medium text-amber-400">
-              ⏱
-            </span>
-            <input
-              type="number"
-              value={event.delay ?? 0}
-              min="0"
-              max="10000"
-              class="rounded border px-2 py-1 text-sm width-20 outline-none bg-canvas text-amber-300"
-              oninput={(e) => (event.delay = parseInt((e.target as HTMLInputElement)?.value || '0') || 0)}
-            /> ms
-          </div>
-          <!-- Text card -->
-          {/if}
-          {#if event.type === 'text'}
-          <div class="flex items-center gap-2">
-            <span class="rounded bg-purple-500/20 px-2 py-1 text-xs font-medium text-purple-400">
-              Aa
-            </span>
+
+          <!-- Macro Name -->
+          <div class="mb-5">
+            <label class="block text-[11px] font-bold tracking-[0.1em] uppercase text-ink-faint mb-2">Macro Name</label>
             <input
               type="text"
-              value={event.text ?? ''}
-              class="flex-1 rounded border px-2 py-1 text-sm outline-none bg-canvas text-purple-300"
-              oninput={(e) => (event.text = (e.target as HTMLInputElement)?.value || '')}
-              placeholder="Enter text..."
+              bind:value={newMacroName}
+              class="w-full rounded-xl border border-edge bg-canvas px-4 py-2.5 text-sm outline-none focus:border-glorious focus:ring-1 focus:ring-glorious/30 placeholder:text-ink-faint"
+              placeholder="Enter macro name..."
             />
           </div>
-          {/if}
 
-          <div class="flex gap-1">
+          <!-- Time Delay Mode (Pills/Radio Tabs) -->
+          <div class="mb-5">
+            <label class="block text-[11px] font-bold tracking-[0.1em] uppercase text-ink-faint mb-3">Time Delay Mode</label>
+            <div class="flex gap-2" role="radiogroup" aria-label="Time delay mode">
+              {#each [
+                { value: 'disable', label: 'Disable Delay', desc: 'No delays between events' },
+                { value: 'dynamic', label: 'Dynamic Delay', desc: 'Recorded timing preserved' },
+                { value: 'fixed', label: 'Fixed Delay', desc: 'Custom ms between events' },
+              ] as mode}
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={timeDelayMode === mode.value}
+                  class="flex-1 rounded-xl border p-3 text-left transition cursor-pointer {timeDelayMode === mode.value
+                    ? 'border-glorious/80 bg-zinc-900 text-glorious ring-1 ring-glorious/50 shadow-[0_0_14px_rgba(255,184,0,0.22)]'
+                    : 'border border-edge bg-canvas/50 text-ink-dim hover:border-edge-bright hover:text-ink'}"
+                  onclick={() => (timeDelayMode = mode.value as 'disable' | 'dynamic' | 'fixed')}
+                >
+                  <div class="text-sm font-extrabold">{mode.label}</div>
+                  <div class="text-[10px] text-ink-faint mt-0.5 font-normal">{mode.desc}</div>
+                </button>
+              {/each}
+            </div>
+            {#if timeDelayMode === 'fixed'}
+              <div class="mt-3 flex items-center gap-3">
+                <label class="text-[11px] font-medium text-ink-dim">Fixed Delay (ms):</label>
+                <input
+                  type="number"
+                  bind:value={fixedDelayMs}
+                  min="0"
+                  max="10000"
+                  step="10"
+                  class="w-24 rounded-xl border border-edge bg-canvas px-3 py-2 text-sm font-mono tabular-nums outline-none focus:border-glorious"
+                />
+                <span class="text-[11px] text-ink-faint">Applied to all new recorded events</span>
+              </div>
+            {/if}
+          </div>
+
+          <!-- Loop Settings (Keychron Style) -->
+          <div class="mb-5 rounded-xl border border-edge/80 bg-panel/70 p-4">
+            <div class="mb-3 flex items-center justify-between">
+              <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">LOOP SETTINGS</h3>
+              <span class="text-[10px] text-ink-faint">How the macro repeats when assigned to a button</span>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <!-- Stop on Release (while_holding) -->
+              <button
+                type="button"
+                role="radio"
+                aria-checked={repeatMode === 'while_holding'}
+                class="rounded-xl border p-3 text-left transition cursor-pointer {repeatMode === 'while_holding'
+                  ? 'border-glorious/80 bg-zinc-900 text-glorious ring-1 ring-glorious/50 shadow-[0_0_12px_rgba(255,184,0,0.20)]'
+                  : 'border border-edge bg-canvas/50 text-ink-dim hover:border-edge-bright hover:text-ink'}"
+                onclick={() => (repeatMode = 'while_holding')}
+              >
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="flex-shrink-0 h-5 w-5 rounded border-2 border-current" style="border-color: {repeatMode === 'while_holding' ? '#ffb800' : 'var(--color-edge)'};">
+                    {#if repeatMode === 'while_holding'}
+                      <span class="flex h-full w-full items-center justify-center">
+                        <span class="h-2.5 w-2.5 rounded bg-glorious"></span>
+                      </span>
+                    {/if}
+                  </span>
+                  <span class="text-sm font-bold">Stop on Release</span>
+                </div>
+                <div class="text-[10px] text-ink-faint leading-snug pl-7">
+                  Repeats while button is held. Stops immediately on release.
+                </div>
+              </button>
+
+              <!-- Stop on Any Key (toggle) -->
+              <button
+                type="button"
+                role="radio"
+                aria-checked={repeatMode === 'toggle'}
+                class="rounded-xl border p-3 text-left transition cursor-pointer {repeatMode === 'toggle'
+                  ? 'border-glorious/80 bg-zinc-900 text-glorious ring-1 ring-glorious/50 shadow-[0_0_12px_rgba(255,184,0,0.20)]'
+                  : 'border border-edge bg-canvas/50 text-ink-dim hover:border-edge-bright hover:text-ink'}"
+                onclick={() => (repeatMode = 'toggle')}
+              >
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="flex-shrink-0 h-5 w-5 rounded border-2 border-current" style="border-color: {repeatMode === 'toggle' ? '#ffb800' : 'var(--color-edge)'};">
+                    {#if repeatMode === 'toggle'}
+                      <span class="flex h-full w-full items-center justify-center">
+                        <span class="h-2.5 w-2.5 rounded bg-glorious"></span>
+                      </span>
+                    {/if}
+                  </span>
+                  <span class="text-sm font-bold">Stop on Any Key</span>
+                </div>
+                <div class="text-[10px] text-ink-faint leading-snug pl-7">
+                  Toggles on press, stops when any other key is pressed.
+                </div>
+              </button>
+
+              <!-- Stop on Press (no_repeat with count) -->
+              <button
+                type="button"
+                role="radio"
+                aria-checked={repeatMode === 'no_repeat'}
+                class="rounded-xl border p-3 text-left transition cursor-pointer {repeatMode === 'no_repeat'
+                  ? 'border-glorious/80 bg-zinc-900 text-glorious ring-1 ring-glorious/50 shadow-[0_0_12px_rgba(255,184,0,0.20)]'
+                  : 'border border-edge bg-canvas/50 text-ink-dim hover:border-edge-bright hover:text-ink'}"
+                onclick={() => (repeatMode = 'no_repeat')}
+              >
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="flex-shrink-0 h-5 w-5 rounded border-2 border-current" style="border-color: {repeatMode === 'no_repeat' ? '#ffb800' : 'var(--color-edge)'};">
+                    {#if repeatMode === 'no_repeat'}
+                      <span class="flex h-full w-full items-center justify-center">
+                        <span class="h-2.5 w-2.5 rounded bg-glorious"></span>
+                      </span>
+                    {/if}
+                  </span>
+                  <span class="text-sm font-bold">Stop on Press</span>
+                </div>
+                <div class="text-[10px] text-ink-faint leading-snug pl-7">
+                  Plays once per press. Loop count:{" "}
+                  <input
+                    type="number"
+                    bind:value={loopCount}
+                    min="1"
+                    max="100"
+                    class="w-14 rounded border border-edge bg-canvas px-2 py-1 text-sm font-mono tabular-nums text-center outline-none focus:border-glorious"
+                  />
+                </div>
+              </button>
+            </div>
+
+            {#if stopOnAnyKey && repeatMode === 'toggle'}
+              <div class="mt-3 flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-950/20 px-3 py-2 text-[11px] text-amber-300">
+                <ShieldCheck size={13} class="shrink-0" />
+                <span>Stop on Any Key is enabled — macro will interrupt on any keystroke.</span>
+              </div>
+            {/if}
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex flex-wrap gap-3">
+            <!-- Recording Toggle Button (Large Tactile) -->
             <button
-              class="rounded border px-1.5 py-0.5 text-[9px] text-ink-dim hover:text-glorious transition"
-              onclick={() => moveEventUp(index)}
-              title="Move up"
+              type="button"
+              class="flex-1 min-w-[200px] flex items-center justify-center gap-2 rounded-xl border p-4 text-left transition cursor-pointer {isRecording
+                ? 'border-red-500/60 bg-red-500/10 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.25)] animate-pulse-soft'
+                : 'border-glorious/40 bg-zinc-900 text-glorious hover:border-glorious hover:bg-glorious/10 shadow-[0_0_10px_rgba(255,184,0,0.15)]'}"
+              onclick={isRecording ? stopRecording : startRecording}
+              aria-pressed={isRecording}
             >
-              ↑
+              <div class="flex-shrink-0 flex h-10 w-10 items-center justify-center rounded-lg {isRecording ? 'bg-red-500/20' : 'bg-glorious/20'}">
+                {#if isRecording}
+                  <span class="h-5 w-5 rounded bg-red-400 animate-pulse shadow-[0_0_8px_#ef4444]"></span>
+                {:else}
+                  <Mic class="h-5 w-5" />
+                {/if}
+              </div>
+              <div class="text-sm font-bold">
+                {isRecording ? 'Stop Recording' : 'Start Recording'}
+              </div>
+              <div class="text-[10px] font-medium opacity-70">
+                {isRecording ? 'Press keys to capture...' : 'Captures keystrokes with timing'}
+              </div>
             </button>
+
+            <!-- Save Macro (Gold Button) -->
             <button
-              class="rounded border px-1.5 py-0.5 text-[9px] text-ink-dim hover:text-glorious transition"
-              onclick={() => moveEventDown(index)}
-              title="Move down"
+              type="button"
+              class="flex-1 min-w-[140px] flex items-center justify-center gap-2 rounded-xl bg-glorious px-5 py-3 text-sm font-black text-zinc-950 shadow-[0_0_18px_rgba(255,184,0,0.35)] transition hover:bg-glorious-soft hover:shadow-[0_0_24px_rgba(255,184,0,0.5)] cursor-pointer"
+              onclick={saveMacro}
             >
-              ↓
+              <Save size={15} />
+              <span>Save Macro</span>
             </button>
+
+            <!-- Clear All (Subtle Danger) -->
             <button
-              class="rounded border px-1.5 py-0.5 text-[9px] text-ink-dim hover:text-red-400 transition"
-              onclick={() => deleteEvent(index)}
-              title="Delete"
+              type="button"
+              class="flex-1 min-w-[140px] flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/5 px-5 py-3 text-sm font-bold text-red-400 transition hover:border-red-500/60 hover:bg-red-500/10 cursor-pointer"
+              onclick={clearEvents}
             >
-              <Trash2 size={10} class="text-red-400" /> D
+              <RotateCcw size={15} />
+              <span>Clear All</span>
             </button>
           </div>
-        </div>
-        {/each}
-      </div>
+        </section>
+
+        <!-- Card 2: SEQUENCE / EVENT TABLE -->
+        <section class="rounded-2xl border border-edge bg-card p-5">
+          <div class="mb-4 flex items-center justify-between">
+            <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">SEQUENCE / EVENT TABLE</h3>
+            <span class="rounded-full border border-edge bg-canvas px-2.5 py-0.5 text-[11px] font-bold text-glorious tabular-nums">
+              {timeline.length} Events
+            </span>
+          </div>
+
+          {#if timeline.length === 0}
+            <div class="rounded-xl border-2 border-dashed border-edge/50 bg-canvas/50 p-12 text-center">
+              <Move class="h-10 w-10 mx-auto text-ink-faint/30 mb-3" />
+              <p class="text-sm text-ink-dim mb-1">No events recorded yet</p>
+              <p class="text-xs text-ink-faint">Click "Start Recording" or use Quick Insert below</p>
+            </div>
+          {:else}
+            <div class="overflow-x-auto rounded-xl border border-edge">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-edge bg-panel/50">
+                    <th class="w-12 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-ink-faint">#</th>
+                    <th class="w-28 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-ink-faint">TYPE</th>
+                    <th class="flex-1 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-ink-faint">KEY / VALUE</th>
+                    <th class="w-28 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-ink-faint">DELAY (ms)</th>
+                    <th class="w-32 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-ink-faint">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each timeline as event, index}
+                    <tr class="border-b border-edge/50 last:border-0 hover:bg-card-hover transition">
+                      <td class="px-3 py-2.5 text-center text-[11px] font-mono tabular-nums text-ink-faint">{index + 1}</td>
+                      
+                      <td class="px-3 py-2.5 text-center">
+                        {#if event.type === 'down'}
+                          <span class="inline-flex items-center justify-center rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-400">
+                            <span class="flex-shrink-0 h-3 w-3" aria-hidden="true">⇩</span>
+                            <span class="ml-1 hidden sm:inline">Key Down</span>
+                          </span>
+                        {:else if event.type === 'up'}
+                          <span class="inline-flex items-center justify-center rounded-full border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-400">
+                            <span class="flex-shrink-0 h-3 w-3" aria-hidden="true">⇧</span>
+                            <span class="ml-1 hidden sm:inline">Key Up</span>
+                          </span>
+                        {:else if event.type === 'delay'}
+                          <span class="inline-flex items-center justify-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+                            <span class="flex-shrink-0 h-3 w-3" aria-hidden="true">⏱</span>
+                            <span class="ml-1 hidden sm:inline">Delay</span>
+                          </span>
+                        {:else if event.type === 'text'}
+                          <span class="inline-flex items-center justify-center rounded-full border border-purple-500/40 bg-purple-500/10 px-2 py-0.5 text-[10px] font-bold text-purple-400">
+                            <span class="flex-shrink-0 h-3 w-3" aria-hidden="true">Aa</span>
+                            <span class="ml-1 hidden sm:inline">Text</span>
+                          </span>
+                        {/if}
+                      </td>
+
+                      <td class="px-3 py-2.5">
+                        {#if event.type === 'down' || event.type === 'up'}
+                          <input
+                            type="text"
+                            value={event.key || ''}
+                            class="w-full rounded border border-edge bg-canvas px-2 py-1.5 text-sm font-mono outline-none focus:border-glorious placeholder:text-ink-faint"
+                            placeholder="Key (e.g. Ctrl, A, F1)..."
+                            oninput={(e) => (event.key = (e.target as HTMLInputElement).value)}
+                          />
+                        {:else if event.type === 'delay'}
+                          <input
+                            type="number"
+                            value={event.delay ?? 0}
+                            min="0"
+                            max="10000"
+                            step="10"
+                            class="w-full rounded border border-edge bg-canvas px-2 py-1.5 text-sm font-mono tabular-nums text-right outline-none focus:border-glorious"
+                            oninput={(e) => (event.delay = parseInt((e.target as HTMLInputElement).value || '0') || 0)}
+                          />
+                        {:else if event.type === 'text'}
+                          <input
+                            type="text"
+                            value={event.text || ''}
+                            class="w-full rounded border border-edge bg-canvas px-2 py-1.5 text-sm outline-none focus:border-glorious placeholder:text-ink-faint"
+                            placeholder="Text to type..."
+                            oninput={(e) => (event.text = (e.target as HTMLInputElement).value)}
+                          />
+                        {/if}
+                      </td>
+
+                      <td class="px-3 py-2.5 text-right">
+                        {#if event.type === 'delay'}
+                          <span class="text-[11px] font-mono tabular-nums text-amber-300">{event.delay ?? 0}</span>
+                        {:else if event.type === 'text'}
+                          <span class="text-[11px] text-ink-faint">—</span>
+                        {:else}
+                          <input
+                            type="number"
+                            value={event.delay ?? 0}
+                            min="0"
+                            max="10000"
+                            step="10"
+                            class="w-20 rounded border border-edge bg-canvas px-2 py-1.5 text-sm font-mono tabular-nums text-right outline-none focus:border-glorious"
+                            oninput={(e) => (event.delay = parseInt((e.target as HTMLInputElement).value || '0') || 0)}
+                          />
+                        {/if}
+                      </td>
+
+                      <td class="px-3 py-2.5 text-center">
+                        <div class="flex items-center justify-center gap-1">
+                          <button
+                            class="rounded-lg p-1.5 text-ink-faint hover:text-glorious hover:bg-glorious/10 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                            onclick={() => moveEventUp(index)}
+                            disabled={index === 0}
+                            title="Move up"
+                            aria-label="Move up"
+                          >
+                            <MoveUp size={13} />
+                          </button>
+                          <button
+                            class="rounded-lg p-1.5 text-ink-faint hover:text-glorious hover:bg-glorious/10 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                            onclick={() => moveEventDown(index)}
+                            disabled={index === timeline.length - 1}
+                            title="Move down"
+                            aria-label="Move down"
+                          >
+                            <MoveDown size={13} />
+                          </button>
+                          <button
+                            class="rounded-lg p-1.5 text-ink-faint hover:text-red-400 hover:bg-red-500/10 transition"
+                            onclick={() => deleteEvent(index)}
+                            title="Delete"
+                            aria-label="Delete event"
+                          >
+                            <Trash2 size={13} class="text-red-400" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
+
+          <!-- Quick Insert Bar -->
+          <div class="mt-4 rounded-xl border border-edge/80 bg-panel/70 p-4">
+            <div class="mb-3 flex items-center justify-between">
+              <span class="text-[11px] font-bold tracking-[0.1em] uppercase text-ink-faint">QUICK INSERT</span>
+              <span class="text-[10px] text-ink-faint">Appends to end of sequence</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <button
+                type="button"
+                class="flex items-center justify-center gap-2 rounded-xl border border-edge bg-canvas px-3 py-2.5 text-sm font-medium text-ink-dim transition hover:border-cyan-500/40 hover:text-cyan-400 hover:bg-cyan-500/5 cursor-pointer"
+                onclick={insertKeyDown}
+              >
+                <span class="h-4 w-4 text-cyan-400">⇩</span>
+                <span>Key Down</span>
+              </button>
+              <button
+                type="button"
+                class="flex items-center justify-center gap-2 rounded-xl border border-edge bg-canvas px-3 py-2.5 text-sm font-medium text-ink-dim transition hover:border-rose-500/40 hover:text-rose-400 hover:bg-rose-500/5 cursor-pointer"
+                onclick={insertKeyUp}
+              >
+                <span class="h-4 w-4 text-rose-400">⇧</span>
+                <span>Key Up</span>
+              </button>
+              <button
+                type="button"
+                class="flex items-center justify-center gap-2 rounded-xl border border-edge bg-canvas px-3 py-2.5 text-sm font-medium text-ink-dim transition hover:border-amber-500/40 hover:text-amber-400 hover:bg-amber-500/5 cursor-pointer"
+                onclick={insertDelay}
+              >
+                <span class="h-4 w-4 text-amber-400">⏱</span>
+                <span>Delay (50ms)</span>
+              </button>
+              <button
+                type="button"
+                class="flex items-center justify-center gap-2 rounded-xl border border-edge bg-canvas px-3 py-2.5 text-sm font-medium text-ink-dim transition hover:border-purple-500/40 hover:text-purple-400 hover:bg-purple-500/5 cursor-pointer"
+                onclick={insertText}
+              >
+                <span class="h-4 w-4 text-purple-400">Aa</span>
+                <span>Text Block</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Card 3: TEST SCRATCHPAD -->
+        <section class="rounded-2xl border border-edge bg-card p-5">
+          <div class="mb-3 flex items-center justify-between">
+            <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">TEST SCRATCHPAD</h3>
+            <span class="text-[10px] text-ink-faint">Type to test playback simulation</span>
+          </div>
+          <textarea
+            rows="4"
+            placeholder="Click here and test your macro by typing... (simulates key presses)"
+            class="w-full rounded-xl border border-edge bg-canvas px-4 py-3 text-sm font-mono outline-none focus:border-glorious focus:ring-1 focus:ring-glorious/30 placeholder:text-ink-faint resize-none"
+            oninput={(e) => {
+              const value = (e.target as HTMLTextAreaElement).value;
+              if (value.length > 0 && value.length % 20 === 0) {
+                showToast(`Typed: ${value.substring(0, 30)}...`);
+              }
+            }}
+          ></textarea>
+          <p class="mt-2 text-[10px] text-ink-faint">
+            This scratchpad captures keystrokes for visual feedback only. Actual macro playback occurs when the macro is assigned to a mouse button in the Customize tab.
+          </p>
+        </section>
       {/if}
+    </main>
+  </div>
 
-      <!-- Quick Action Adders toolbar -->
-      <div class="flex gap-2 mt-4 pt-4 border-t border-edge bg-card">
-        <button
-          class="flex-1 rounded border px-3 py-2 text-sm font-medium text-ink-dim hover:bg-glorious/10 transition"
-          onclick={() => timeline.push({ id: crypto.randomUUID(), type: 'down', key: undefined, keyCode: undefined, delay: 0 })}
-          title="Key Down"
-        >
-          + Key Down
-        </button>
-        <button
-          class="flex-1 rounded border px-3 py-2 text-sm font-medium text-ink-dim hover:bg-glorious/10 transition"
-          onclick={() => timeline.push({ id: crypto.randomUUID(), type: 'up', key: undefined, keyCode: undefined, delay: 0 })}
-          title="Key Up"
-        >
-          + Key Up
-        </button>
-        <button
-          class="flex-1 rounded border px-3 py-2 text-sm font-medium text-ink-dim hover:bg-glorious/10 transition"
-          onclick={() => timeline.push({ id: crypto.randomUUID(), type: 'delay', delay: 50 })}
-          title="+ Delay (50ms)"
-        >
-          + Delay (50ms)
-        </button>
-        <button
-          class="flex-1 rounded border px-3 py-2 text-sm font-medium text-ink-dim hover:bg-glorious/10 transition"
-          onclick={() => timeline.push({ id: crypto.randomUUID(), type: 'text', text: '' })}
-          title="+ Text Block"
-        >
-          + Text Block
-        </button>
-      </div>
+  <!-- Toast Notification -->
+  {#if toastMessage}
+    <div
+      class="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-full border border-glorious/50 bg-zinc-900/95 px-4 py-2 text-sm font-bold text-glorious shadow-[0_0_24px_rgba(255,184,0,0.4)] backdrop-blur animate-in slide-in-from-top-2 duration-300"
+      role="status"
+      aria-live="polite"
+    >
+      <span class="h-2 w-2 rounded-full bg-glorious shadow-[0_0_8px_#ffb800]"></span>
+      <span>{toastMessage}</span>
     </div>
-
-    <!-- Test Area / Scratchpad -->
-    <div class="rounded border p-4 bg-panel border-edge">
-      <h3 class="text-semibold text-sm mb-2">Test / Scratchpad</h3>
-      <textarea
-        rows="3"
-        placeholder="Type here to test or paste keystroke sequences..."
-        class="w-full rounded border px-3 py-2 text-sm outline-none bg-card text-ink resize-none"
-        oninput={(e) => {
-          // Simple test: just show what was typed
-          showToast(`Typed: ${(e.target as HTMLTextAreaElement)?.value?.substring(0, 30) ?? ''}...`);
-        }}
-      ></textarea>
-    </div>
-  </main>
+  {/if}
 </div>
-
-{#if toastMessage}
-<div
-  class="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-full border border-glorious/50 bg-zinc-900/95 px-4 py-2 text-sm font-bold text-glorious shadow-[0_0_24px_rgba(255,184,0,0.4)] backdrop-blur"
->
-  <span class="h-2 w-2 rounded-full bg-glorious shadow-[0_0_8px_#ffb800]"></span>
-  <span>{toastMessage}</span>
-</div>
-{/if}
