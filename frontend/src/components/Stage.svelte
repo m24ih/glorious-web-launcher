@@ -46,17 +46,17 @@
   }
 </script>
 
-<div class="flex min-h-0 flex-1 flex-col gap-4">
+<div class="flex min-h-0 flex-1 flex-col gap-3">
   <!-- Header -->
   <div class="flex items-center gap-3">
     <div class="min-w-0">
-      <h1 class="truncate text-lg font-bold text-ink" translate="no">
+      <h1 class="truncate text-base font-semibold text-ink" translate="no">
         {device?.name ?? 'No device'}
       </h1>
     </div>
 
     {#if device?.battery}
-      <div class="flex items-center gap-2 rounded-full border border-edge bg-card px-3 py-1">
+      <div class="flex items-center gap-2 rounded border border-edge bg-card px-2.5 py-1">
         <span class="text-[11px] font-semibold text-ink">{Math.max(device.battery.percentage, 1)}%</span>
         <div class="h-1.5 w-12 overflow-hidden rounded-full bg-edge">
           <div
@@ -68,7 +68,7 @@
     {/if}
 
     {#if device?.connected}
-      <div class="rounded-full border border-edge bg-card px-3 py-1 text-[11px] text-ink-dim">
+      <div class="rounded border border-edge bg-card px-2.5 py-1 text-[11px] text-ink-dim">
         {device.connection?.type ?? 'Connected'}
       </div>
     {/if}
@@ -76,7 +76,7 @@
     <div class="ml-auto flex items-center gap-2">
       <button
         type="button"
-        class="flex items-center gap-2 rounded-full border border-edge bg-card px-4 py-2 text-xs font-semibold text-ink-dim hover:border-edge-bright hover:text-ink"
+        class="flex items-center gap-2 rounded border border-edge bg-card px-3 py-1.5 text-xs font-semibold text-ink-dim hover:border-edge-bright hover:text-ink"
         onclick={onReset}
       >
         <RefreshCw size={14} />
@@ -84,7 +84,7 @@
       </button>
       <button
         type="button"
-        class="flex items-center gap-2 rounded-full bg-glorious px-5 py-2 text-xs font-bold text-canvas shadow-[0_0_18px_rgba(255,184,0,0.35)] hover:bg-glorious-soft disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+        class="flex items-center gap-2 rounded bg-glorious px-4 py-1.5 text-xs font-bold text-canvas hover:bg-glorious-soft disabled:cursor-not-allowed disabled:opacity-40"
         disabled={!canApply || applying}
         onclick={onApply}
       >
@@ -96,7 +96,7 @@
 
   <!-- Stage canvas -->
   <div class="relative flex min-h-0 flex-1 items-center justify-center">
-    <div class="relative h-full max-h-[560px] w-full max-w-[940px]">
+    <div class="relative h-full max-h-[600px] w-full max-w-[1120px]">
       <!-- aspect locked canvas so %-geometry stays calibrated -->
       <div class="relative mx-auto aspect-[8/5] h-full max-h-full">
         <!-- callout lines -->
@@ -112,17 +112,17 @@
               d="M {spec.pillX} {spec.pillY} Q {ctrlX(spec)} {spec.pillY} {spec.anchorX} {spec.anchorY}"
               fill="none"
               vector-effect="non-scaling-stroke"
-              stroke={active ? '#ffb800' : '#2a2a33'}
+              stroke={active ? '#6277ff' : '#34343b'}
               stroke-width={active ? 1.6 : 1.1}
               stroke-linecap="round"
-              class={active ? 'drop-shadow-[0_0_6px_rgba(255,184,0,0.8)] transition-all' : 'transition-all'}
+              class="transition-all"
             />
             <circle
               cx={spec.anchorX}
               cy={spec.anchorY}
               r={active ? 0.55 : 0.35}
               vector-effect="non-scaling-stroke"
-              fill={active ? '#ffb800' : '#3a3a44'}
+              fill={active ? '#6277ff' : '#4a4a52'}
               class="transition-all"
             />
           {/each}
@@ -146,8 +146,8 @@
           {@const mapped = mappingFor(spec.id)}
           <button
             type="button"
-            class="absolute flex flex-col items-center rounded-full border px-3.5 py-1.5 text-left {active
-              ? 'border-glorious pin-glow'
+            class="absolute flex flex-col items-center rounded border px-2.5 py-1 text-left {active
+              ? 'border-[#6277ff] bg-[#4657c9] shadow-sm'
               : 'border-edge bg-card hover:border-edge-bright'}"
             style={spec.side === 'left'
               ? `left: ${spec.pillX}%; top: ${spec.pillY}%; transform: translate(-50%, -50%)`
@@ -156,7 +156,7 @@
             title="Select to remap {PIN_LABELS[spec.id]}"
           >
             <span
-              class="text-[11px] font-semibold leading-tight {active ? 'glow-amber-text' : 'text-ink'}"
+              class="text-[10px] font-semibold leading-tight {active ? 'text-white' : 'text-ink'}"
             >
               {spec.label}
             </span>

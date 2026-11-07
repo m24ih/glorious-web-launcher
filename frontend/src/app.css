@@ -2,12 +2,12 @@
 
 /* ── Glorious dark theme tokens ─────────────────────────────────────────── */
 @theme {
-  --color-canvas: #0d0d10;
-  --color-panel: #141418;
-  --color-card: #1e1e24;
-  --color-card-hover: #26262e;
-  --color-edge: #2a2a33;
-  --color-edge-bright: #3a3a44;
+  --color-canvas: #101011;
+  --color-panel: #19191b;
+  --color-card: #222225;
+  --color-card-hover: #2a2a2e;
+  --color-edge: #343438;
+  --color-edge-bright: #47474d;
   --color-ink: #f4f4f6;
   --color-ink-dim: #a3a3ad;
   --color-ink-faint: #6b6b75;
@@ -48,7 +48,12 @@ body {
 }
 
 ::selection {
-  background-color: rgba(255, 184, 0, 0.35);
+  background-color: rgba(98, 119, 255, 0.38);
+}
+
+:focus-visible {
+  outline: 2px solid #8190ff;
+  outline-offset: 2px;
 }
 
 *,
@@ -165,4 +170,15 @@ input[type='range']:disabled {
 
 select {
   color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Plus, Trash2 } from 'lucide-svelte';
+  import { Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-svelte';
   import type { SettingsDraft } from '../lib/types';
   import type { DeviceCapabilities, DeviceView } from '../lib/types';
   import { DPI_COLORS, clamp } from '../lib/actions';
@@ -13,20 +13,34 @@
 
   let { draft, onChange, device = null, caps }: Props = $props();
 
-  const stageLimit = $derived(Math.min(caps?.maxDpiStages ?? 8, 8));
+  const stageLimit = $derived(Math.min(caps?.maxDpiStages ?? 4, 8));
+  const minDpi = $derived(caps?.minDpi ?? 100);
+  const maxDpi = $derived(caps?.maxDpi ?? 19000);
   const pollingRates = $derived(caps?.pollingRates ?? [125, 250, 500, 1000]);
   const lodRaw = $derived(caps?.supportedLods ?? [1, 2]);
   const lodOptions = $derived(lodRaw.map((v) => ({ value: v, label: `${v} mm` })));
 
+  // Current active stage object safely indexed
+  const activeStageIndex = $derived(
+    Math.max(0, Math.min(draft.active_dpi_stage - 1, draft.dpi_stages.length - 1))
+  );
+  const activeStage = $derived(draft.dpi_stages[activeStageIndex]);
+
+  // DPI tick scale markers for Keychron-style ruler
+  const dpiTicks = $derived([100, 400, 800, 1600, 3200, 6400, maxDpi]);
+
   function setDpiValue(index: number, val: number) {
-    const minDpi = caps?.minDpi ?? 100;
-    const maxDpi = caps?.maxDpi ?? 19000;
     const clamped = clamp(Math.round(val / 100) * 100, minDpi, maxDpi);
     onChange((prev) => {
       const nextStages = [...prev.dpi_stages];
       nextStages[index] = { ...nextStages[index], value: clamped };
       return { ...prev, dpi_stages: nextStages };
     });
+  }
+
+  function adjustActiveDpi(delta: number) {
+    if (!activeStage) return;
+    setDpiValue(activeStageIndex, activeStage.value + delta);
   }
 
   function setStageColor(index: number, color: string) {
@@ -42,7 +56,7 @@
     onChange((prev) => {
       const nextIdx = prev.dpi_stages.length;
       const lastStage = prev.dpi_stages[nextIdx - 1];
-      const nextVal = lastStage ? lastStage.value : 1600;
+      const nextVal = lastStage ? Math.min(lastStage.value + 400, maxDpi) : 1600;
       const nextColor = DPI_COLORS[nextIdx % DPI_COLORS.length];
       const nextStages = [...prev.dpi_stages, { value: nextVal, color: nextColor }];
       return { ...prev, dpi_stages: nextStages };
@@ -90,8 +104,6 @@
   }
 
   function setDpiX(index: number, val: number) {
-    const minDpi = caps?.minDpi ?? 100;
-    const maxDpi = caps?.maxDpi ?? 19000;
     const clamped = clamp(Math.round(val / 100) * 100, minDpi, maxDpi);
     onChange((prev) => {
       const nextStages = [...prev.dpi_stages];
@@ -101,8 +113,6 @@
   }
 
   function setDpiY(index: number, val: number) {
-    const minDpi = caps?.minDpi ?? 100;
-    const maxDpi = caps?.maxDpi ?? 19000;
     const clamped = clamp(Math.round(val / 100) * 100, minDpi, maxDpi);
     onChange((prev) => {
       const nextStages = [...prev.dpi_stages];
@@ -116,47 +126,53 @@
   }
 </script>
 
-<div class="flex-1 overflow-y-auto p-8">
-  <div class="mx-auto max-w-[800px] space-y-8">
+<div class="flex-1 overflow-y-auto p-6 lg:p-8">
+  <div class="mx-auto max-w-[860px] space-y-6">
     <!-- Header -->
-    <div>
-      <h2 class="text-xl font-bold text-ink">Pointer Settings</h2>
-      <p class="text-xs text-ink-dim">Configure sensor resolution, polling frequency, and surface tracking.</p>
-    </div>
-
-    <!-- DPI Stages -->
-    <section class="rounded-2xl border border-edge bg-card p-6">
-      <div class="mb-4 flex items-center justify-between">
-        <div>
-          <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">DPI STAGES</h3>
-          <span class="text-xs text-ink-dim">Active Stage: {draft.active_dpi_stage} (of {draft.dpi_stages.length})</span>
-        </div>
+    <div class="flex items-end justify-between border-b border-edge/60 pb-4">
+      <div>
+        <h2 class="text-lg font-bold tracking-tight text-ink">Pointer & Sensor Settings</h2>
+        <p class="text-xs text-ink-dim">Hardware resolution, polling rate, debounce filter and surface tracking.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="rounded-full border border-edge bg-canvas px-3 py-1 text-[11px] font-semibold text-ink-dim">
+          Levels: <strong class="text-ink font-bold">{draft.dpi_stages.length}</strong> / {stageLimit}
+        </span>
         {#if draft.dpi_stages.length < stageLimit}
           <button
             type="button"
             onclick={addStage}
-            class="flex items-center gap-1.5 rounded-full border border-glorious/40 bg-zinc-900 px-3.5 py-1.5 text-xs font-bold text-glorious transition hover:border-glorious hover:bg-glorious/10 shadow-[0_0_12px_rgba(255,184,0,0.15)]"
+            class="flex items-center gap-1.5 rounded-full border border-glorious/40 bg-zinc-900 px-3 py-1 text-[11px] font-bold text-glorious transition hover:border-glorious hover:bg-glorious/10 shadow-[0_0_10px_rgba(255,184,0,0.15)]"
           >
-            <Plus size={14} />
-            <span>Add Stage</span>
+            <Plus size={13} />
+            <span>Add Level</span>
           </button>
-        {:else}
-          <span class="rounded-full border border-edge bg-zinc-900 px-3 py-1 text-[11px] font-semibold text-ink-dim">Max {stageLimit} Stages</span>
         {/if}
+      </div>
+    </div>
+
+    <!-- Keychron-style Horizontal DPI Stages Strip -->
+    <section class="rounded-2xl border border-edge bg-card p-5">
+      <div class="mb-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">DPI STAGES</span>
+          <span class="text-xs text-ink-dim">Select a stage card to calibrate its sensitivity below</span>
+        </div>
         {#if caps?.hasXySplitDpi}
-        <button
-          type="button"
-          onclick={() => setXySplit(!draft.xy_split)}
-          class="flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold transition {draft.xy_split ? 'border-glorious/60 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.15)]' : 'border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
-          aria-pressed={draft.xy_split}
-          title="X/Y Split DPI"
-        >
-          <span>X/Y Split</span>
-        </button>
+          <button
+            type="button"
+            onclick={() => setXySplit(!draft.xy_split)}
+            class="flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition {draft.xy_split ? 'border-glorious/60 bg-zinc-900 text-glorious shadow-[0_0_10px_rgba(255,184,0,0.15)]' : 'border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
+            aria-pressed={draft.xy_split}
+            title="X/Y Split DPI"
+          >
+            <span>X/Y Split</span>
+          </button>
         {/if}
       </div>
 
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <!-- Horizontal Stage Cards -->
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {#each draft.dpi_stages as stage, i (i)}
           {@const stageNumber = i + 1}
           {@const color = stage.color || DPI_COLORS[i % DPI_COLORS.length]}
@@ -171,21 +187,21 @@
                 setActiveStage(stageNumber);
               }
             }}
-            class="relative flex flex-col rounded-xl border p-4 transition cursor-pointer select-none {isActive
-              ? 'border-glorious bg-zinc-900/90 ring-1 ring-glorious/60 shadow-[0_0_20px_rgba(255,184,0,0.22)]'
-              : 'border-edge bg-canvas/50 hover:border-edge-bright hover:bg-card-hover'}"
+            class="group relative flex flex-col justify-between rounded-xl border p-3.5 transition cursor-pointer select-none {isActive
+              ? 'border-glorious bg-zinc-900/95 ring-1 ring-glorious/60 shadow-[0_0_18px_rgba(255,184,0,0.20)]'
+              : 'border-edge bg-canvas/60 hover:border-edge-bright hover:bg-card-hover'}"
           >
-            <!-- Stage Header & Radio Toggle -->
-            <div class="mb-3 flex items-center justify-between">
+            <!-- Card Header: LED swatch + Stage name + Delete button -->
+            <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <!-- Color swatch with native picker -->
                 <label
-                  class="relative flex h-5 w-5 items-center justify-center cursor-pointer rounded-full transition hover:scale-110"
-                  title="Change Stage Color"
+                  class="relative flex h-4 w-4 items-center justify-center cursor-pointer rounded-sm transition hover:scale-110"
+                  title="Click to change hardware LED color"
                 >
                   <span
-                    class="h-3.5 w-3.5 rounded-full ring-2 ring-offset-2 ring-offset-card"
-                    style="background: {color}; ring-color: {color}; box-shadow: 0 0 10px {color};"
+                    class="h-2.5 w-2.5 rounded-sm ring-1 ring-white/20 shadow-sm"
+                    style="background: {color}; box-shadow: 0 0 8px {color};"
                   ></span>
                   <input
                     type="color"
@@ -195,217 +211,178 @@
                     class="absolute inset-0 h-full w-full opacity-0 cursor-pointer"
                   />
                 </label>
-                <span class="text-xs font-bold {isActive ? 'text-glorious' : 'text-ink-dim'}">
+                <span class="text-[11px] font-bold tracking-wider {isActive ? 'text-glorious' : 'text-ink-dim'}">
                   STAGE {stageNumber}
                 </span>
-                {#if isActive}
-                  <span class="rounded-full bg-glorious/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-glorious border border-glorious/40 shadow-[0_0_8px_rgba(255,184,0,0.3)]">
-                    ACTIVE
-                  </span>
-                {/if}
               </div>
 
-              <div class="flex items-center gap-2">
-                {#if draft.dpi_stages.length > 1}
-                  <button
-                    type="button"
-                    title="Delete Stage"
-                    aria-label="Delete Stage"
-                    onclick={(e) => {
-                      e.stopPropagation();
-                      removeStage(i);
-                    }}
-                    class="rounded p-1 text-ink-faint transition hover:bg-zinc-800 hover:text-red-400"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                {/if}
-
-                <input
-                  type="radio"
-                  name="active-dpi-stage"
-                  checked={isActive}
-                  onchange={() => setActiveStage(stageNumber)}
-                  onclick={(e) => e.stopPropagation()}
-                  class="accent-glorious h-4 w-4 cursor-pointer"
-                />
-              </div>
+              {#if draft.dpi_stages.length > 1}
+                <button
+                  type="button"
+                  title="Remove Stage"
+                  aria-label="Remove Stage"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    removeStage(i);
+                  }}
+                  class="rounded p-1 text-ink-faint opacity-0 group-hover:opacity-100 transition hover:bg-zinc-800 hover:text-red-400"
+                >
+                  <Trash2 size={12} />
+                </button>
+              {/if}
             </div>
 
-            <!-- Number input and DPI label -->
-            {#if draft.xy_split && caps?.hasXySplitDpi}
-              <div class="mb-3 flex items-center gap-2">
-                <div class="flex-1">
-                  <span class="block text-[10px] font-semibold text-ink-faint mb-0.5">X DPI</span>
-                  <input
-                    type="number"
-                    min="{caps?.minDpi ?? 100}"
-                    max="{caps?.maxDpi ?? 19000}"
-                    step="100"
-                    value={stage.x ?? stage.value}
-                    onclick={(e) => e.stopPropagation()}
-                    oninput={(e) => {
-                      const val = parseInt(e.currentTarget.value, 10);
-                      if (!isNaN(val)) setDpiX(i, val);
-                    }}
-                    class="w-full rounded-lg border border-edge bg-card px-2 py-1 text-sm font-extrabold text-ink focus:border-glorious focus:outline-none"
-                  />
+            <!-- Value Display -->
+            <div class="my-3">
+              {#if draft.xy_split && caps?.hasXySplitDpi}
+                <div class="text-xs font-bold text-ink space-y-0.5">
+                  <div class="flex justify-between text-ink-dim text-[11px]">
+                    <span>X:</span> <strong class="text-ink">{stage.x ?? stage.value}</strong>
+                  </div>
+                  <div class="flex justify-between text-ink-dim text-[11px]">
+                    <span>Y:</span> <strong class="text-ink">{stage.y ?? stage.value}</strong>
+                  </div>
                 </div>
-                <div class="flex-1">
-                  <span class="block text-[10px] font-semibold text-ink-faint mb-0.5">Y DPI</span>
-                  <input
-                    type="number"
-                    min="{caps?.minDpi ?? 100}"
-                    max="{caps?.maxDpi ?? 19000}"
-                    step="100"
-                    value={stage.y ?? stage.value}
-                    onclick={(e) => e.stopPropagation()}
-                    oninput={(e) => {
-                      const val = parseInt(e.currentTarget.value, 10);
-                      if (!isNaN(val)) setDpiY(i, val);
-                    }}
-                    class="w-full rounded-lg border border-edge bg-card px-2 py-1 text-sm font-extrabold text-ink focus:border-glorious focus:outline-none"
-                  />
+              {:else}
+                <div class="text-2xl font-black tracking-tight {isActive ? 'text-ink font-extrabold' : 'text-ink-dim'}">
+                  {stage.value}
                 </div>
-              </div>
-            {:else}
-              <div class="mb-3 flex items-center justify-between gap-2">
-                <input
-                  type="number"
-                  min="{caps?.minDpi ?? 100}"
-                  max="{caps?.maxDpi ?? 19000}"
-                  step="100"
-                  value={stage.value}
-                  onclick={(e) => e.stopPropagation()}
-                  oninput={(e) => {
-                    const val = parseInt(e.currentTarget.value, 10);
-                    if (!isNaN(val)) setDpiValue(i, val);
-                  }}
-                  class="w-24 rounded-lg border border-edge bg-card px-2 py-1 text-base font-extrabold text-ink focus:border-glorious focus:outline-none"
-                />
-                <span class="text-xs font-semibold text-ink-faint">DPI</span>
-              </div>
-            {/if}
+              {/if}
+              <span class="text-[10px] font-semibold tracking-widest uppercase text-ink-faint">DPI</span>
+            </div>
 
-            <!-- Slider -->
+            <!-- Active Pill / Indicator -->
+            <div class="flex items-center justify-between pt-1 border-t border-white/[0.04]">
+              {#if isActive}
+                <span class="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-glorious">
+                  <span class="h-1.5 w-1.5 rounded-full bg-glorious animate-pulse shadow-[0_0_6px_#ffb800]"></span>
+                  ACTIVE
+                </span>
+              {:else}
+                <span class="text-[10px] font-medium text-ink-faint group-hover:text-ink-dim">
+                  Click to select
+                </span>
+              {/if}
+            </div>
+          </div>
+        {/each}
+      </div>
+
+      <!-- Keychron 3D Tactile DPI Slider for Active Stage -->
+      {#if activeStage}
+        <div class="mt-6 rounded-xl border border-edge/80 bg-panel/70 p-4">
+          <div class="mb-3 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-ink">Stage {draft.active_dpi_stage} Sensitivity:</span>
+              <span class="text-sm font-extrabold text-glorious">{activeStage.value} DPI</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button
+                type="button"
+                onclick={() => adjustActiveDpi(-100)}
+                class="rounded-md border border-edge bg-canvas px-2 py-1 text-[11px] font-bold text-ink-dim hover:border-edge-bright hover:text-ink transition"
+                title="-100 DPI"
+              >
+                -100
+              </button>
+              <input
+                type="number"
+                min={minDpi}
+                max={maxDpi}
+                step="100"
+                value={activeStage.value}
+                oninput={(e) => {
+                  const val = parseInt(e.currentTarget.value, 10);
+                  if (!isNaN(val)) setDpiValue(activeStageIndex, val);
+                }}
+                class="w-20 rounded-md border border-edge bg-card px-2 py-1 text-center text-xs font-extrabold text-ink focus:border-glorious focus:outline-none"
+              />
+              <button
+                type="button"
+                onclick={() => adjustActiveDpi(100)}
+                class="rounded-md border border-edge bg-canvas px-2 py-1 text-[11px] font-bold text-ink-dim hover:border-edge-bright hover:text-ink transition"
+                title="+100 DPI"
+              >
+                +100
+              </button>
+            </div>
+          </div>
+
+          <!-- Tactile Slider Track with 3D Thumb -->
+          <div class="relative py-2">
             <input
               type="range"
-              min="{caps?.minDpi ?? 100}"
-              max="{caps?.maxDpi ?? 19000}"
+              min={minDpi}
+              max={maxDpi}
               step="100"
-              value={stage.value}
-              style="--fill: {((stage.value - (caps?.minDpi ?? 100)) / ((caps?.maxDpi ?? 19000) - (caps?.minDpi ?? 100))) * 100}%"
-              onclick={(e) => e.stopPropagation()}
-              oninput={(e) => setDpiValue(i, parseInt(e.currentTarget.value, 10))}
-              class="w-full"
+              value={activeStage.value}
+              style="--fill: {((activeStage.value - minDpi) / (maxDpi - minDpi)) * 100}%"
+              oninput={(e) => setDpiValue(activeStageIndex, parseInt(e.currentTarget.value, 10))}
+              class="w-full cursor-pointer"
             />
           </div>
-        {/each}
 
-        {#if draft.dpi_stages.length < stageLimit}
-          <button
-            type="button"
-            onclick={addStage}
-            class="flex min-h-[140px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-edge-bright/60 bg-canvas/30 p-4 text-ink-dim transition hover:border-glorious hover:bg-glorious/5 hover:text-glorious"
-          >
-            <div class="flex h-8 w-8 items-center justify-center rounded-full border border-edge bg-card">
-              <Plus size={16} />
-            </div>
-            <span class="text-xs font-bold">Add Stage ({draft.dpi_stages.length}/{stageLimit})</span>
-          </button>
-        {/if}
-      </div>
+          <!-- Keychron Ruler Scale Ticks -->
+          <div class="mt-2 flex justify-between text-[10px] font-medium text-ink-faint">
+            {#each dpiTicks as tick (tick)}
+              {@const isNearest = Math.abs(activeStage.value - tick) < 200}
+              <button
+                type="button"
+                onclick={() => setDpiValue(activeStageIndex, tick)}
+                class="hover:text-ink transition {isNearest ? 'text-glorious font-bold' : ''}"
+              >
+                {tick}
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </section>
 
-    <!-- Polling Rate -->
-    <section class="rounded-2xl border border-edge bg-card p-6">
-      <div class="mb-4">
-        <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">POLLING RATE</h3>
-        <p class="mt-1 text-xs text-ink-dim">Report rate sent to USB / 2.4 GHz wireless receiver.</p>
+    <!-- Polling Rate (Keychron Style with Office & Gaming segments) -->
+    <section class="rounded-2xl border border-edge bg-card p-5">
+      <div class="mb-3 flex items-center justify-between">
+        <div>
+          <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">POLLING RATE</h3>
+          <p class="text-xs text-ink-dim">Hardware report rate sent to USB / 2.4 GHz wireless receiver.</p>
+        </div>
+        <span class="rounded-full border border-edge bg-canvas px-3 py-1 text-[11px] font-bold text-glorious">
+          Active: {draft.polling_rate} Hz
+        </span>
       </div>
 
-      <div class="flex flex-wrap gap-2.5">
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {#each pollingRates as rate (rate)}
           {@const isSelected = draft.polling_rate === rate}
+          {@const isGaming = rate >= 1000}
           <button
             type="button"
-            class="rounded-full px-5 py-2 text-xs font-bold transition {isSelected
-              ? 'border border-glorious/60 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.25)]'
-              : 'border border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
+            class="flex flex-col items-center justify-center rounded-xl p-3 text-center transition cursor-pointer {isSelected
+              ? 'border border-glorious/80 bg-zinc-900 text-glorious ring-1 ring-glorious/50 shadow-[0_0_14px_rgba(255,184,0,0.22)]'
+              : 'border border-edge bg-canvas/50 text-ink-dim hover:border-edge-bright hover:text-ink'}"
             onclick={() => setPollingRate(rate)}
           >
-            {rate} Hz
+            <div class="text-base font-black tracking-tight">{rate} Hz</div>
+            <div class="mt-1 text-[10px] font-semibold uppercase tracking-wider {isGaming ? (isSelected ? 'text-glorious' : 'text-emerald-400') : 'text-ink-faint'}">
+              {isGaming ? 'Esports / Gaming' : 'Office / Casual'}
+            </div>
           </button>
         {/each}
       </div>
     </section>
 
-    {#if caps?.hasCompetitiveMode}
-    <!-- Sensor Tracking Mode -->
-    <section class="rounded-2xl border border-edge bg-card p-6">
-      <div class="mb-4">
-        <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">SENSOR TRACKING MODE</h3>
-        <p class="mt-1 text-xs text-ink-dim">Choose between balanced power and competitive latency.</p>
-      </div>
-
-      <div class="flex gap-3">
-        <button
-          type="button"
-          onclick={() => setCompetitiveMode(false)}
-          class="flex-1 rounded-xl border px-4 py-3 text-xs font-bold transition text-left {!draft.competitive_mode ? 'border-glorious/60 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.25)]' : 'border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
-          aria-pressed={!draft.competitive_mode}
-        >
-          <div class="mb-1 font-black text-xs tracking-wide">Standard Mode</div>
-          <div class="text-[11px] leading-snug opacity-90">Optimal power consumption and battery life.</div>
-        </button>
-        <button
-          type="button"
-          onclick={() => setCompetitiveMode(true)}
-          class="flex-1 rounded-xl border px-4 py-3 text-xs font-bold transition text-left {draft.competitive_mode ? 'border-glorious/60 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.25)]' : 'border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
-          aria-pressed={draft.competitive_mode}
-        >
-          <div class="mb-1 font-black text-xs tracking-wide">Competitive Mode</div>
-          <div class="text-[11px] leading-snug opacity-90">Ultra-low motion latency sensor sampling for competitive play.</div>
-        </button>
-      </div>
-    </section>
-    {/if}
-
-    <!-- Debounce Time & LOD in a two-column row -->
-    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-      <!-- Debounce Time -->
-      <section class="rounded-2xl border border-edge bg-card p-6">
-        <div class="mb-4 flex items-center justify-between">
-          <div>
-            <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">DEBOUNCE TIME</h3>
-            <p class="mt-1 text-xs text-ink-dim">Switch debounce delay to prevent double-clicks.</p>
-          </div>
-          <span class="rounded-full border border-edge bg-canvas px-3 py-1 text-xs font-bold text-glorious">
-            {draft.debounce_ms} ms
-          </span>
-        </div>
-
-        <input
-          type="range"
-          min="0"
-          max="16"
-          step="1"
-          value={draft.debounce_ms}
-          style="--fill: {(draft.debounce_ms / 16) * 100}%"
-          oninput={(e) => setDebounce(parseInt(e.currentTarget.value, 10))}
-          class="w-full"
-        />
-        <div class="mt-2 flex justify-between text-[10px] text-ink-faint">
-          <span>0 ms (Fastest)</span>
-          <span>16 ms (Safest)</span>
-        </div>
-      </section>
-
+    <!-- Debounce Time & Lift-Off Distance (Two-column Keychron cards) -->
+    <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
       <!-- Lift-Off Distance (LOD) -->
-      <section class="rounded-2xl border border-edge bg-card p-6">
-        <div class="mb-4">
-          <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">LIFT-OFF DISTANCE (LOD)</h3>
-          <p class="mt-1 text-xs text-ink-dim">Sensor tracking cut-off height above surface.</p>
+      <section class="rounded-2xl border border-edge bg-card p-5 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">LIFT-OFF DISTANCE (LOD)</h3>
+            <span class="rounded-full border border-edge bg-canvas px-2.5 py-0.5 text-[11px] font-bold text-glorious">
+              {draft.lod} mm
+            </span>
+          </div>
+          <p class="text-xs text-ink-dim mb-4">Sensor cut-off height above the mousepad surface.</p>
         </div>
 
         <div class="flex gap-3">
@@ -413,16 +390,80 @@
             {@const isSelected = draft.lod === opt.value}
             <button
               type="button"
-              class="flex-1 rounded-full py-2 text-xs font-bold transition {isSelected
-                ? 'border border-glorious/60 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.25)]'
+              class="flex-1 rounded-xl py-2.5 text-xs font-bold transition text-center {isSelected
+                ? 'border border-glorious/80 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.20)]'
                 : 'border border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
               onclick={() => setLod(opt.value)}
             >
-              {opt.label}
+              <div class="text-sm font-extrabold">{opt.label}</div>
+              <div class="text-[10px] text-ink-faint mt-0.5 font-normal">
+                {opt.value === 1 ? 'Low (Competitive)' : 'High (Thick Pad)'}
+              </div>
             </button>
           {/each}
         </div>
       </section>
+
+      <!-- Debounce Time -->
+      <section class="rounded-2xl border border-edge bg-card p-5 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">DEBOUNCE TIME</h3>
+            <span class="rounded-full border border-edge bg-canvas px-2.5 py-0.5 text-[11px] font-bold text-glorious">
+              {draft.debounce_ms} ms
+            </span>
+          </div>
+          <p class="text-xs text-ink-dim mb-3">Mechanical switch debounce delay to prevent inadvertent double clicks.</p>
+        </div>
+
+        <div>
+          <input
+            type="range"
+            min="0"
+            max="16"
+            step="1"
+            value={draft.debounce_ms}
+            style="--fill: {(draft.debounce_ms / 16) * 100}%"
+            oninput={(e) => setDebounce(parseInt(e.currentTarget.value, 10))}
+            class="w-full cursor-pointer"
+          />
+          <div class="mt-2 flex justify-between text-[10px] text-ink-faint font-medium">
+            <span>0 ms (Fastest response)</span>
+            <span>16 ms (Safest filter)</span>
+          </div>
+        </div>
+      </section>
     </div>
+
+    <!-- Conditional: Competitive Mode (Only if hardware sensor actually supports it) -->
+    {#if caps?.hasCompetitiveMode}
+      <section class="rounded-2xl border border-edge bg-card p-5">
+        <div class="mb-3">
+          <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">SENSOR TRACKING MODE</h3>
+          <p class="text-xs text-ink-dim">Choose between balanced battery consumption and competitive scan latency.</p>
+        </div>
+
+        <div class="flex gap-3">
+          <button
+            type="button"
+            onclick={() => setCompetitiveMode(false)}
+            class="flex-1 rounded-xl border p-3.5 text-left transition {!draft.competitive_mode ? 'border-glorious/70 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.20)]' : 'border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
+            aria-pressed={!draft.competitive_mode}
+          >
+            <div class="text-xs font-black tracking-wide">Standard Mode</div>
+            <div class="text-[11px] text-ink-dim mt-0.5">Optimal power consumption and extended battery life.</div>
+          </button>
+          <button
+            type="button"
+            onclick={() => setCompetitiveMode(true)}
+            class="flex-1 rounded-xl border p-3.5 text-left transition {draft.competitive_mode ? 'border-glorious/70 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.20)]' : 'border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
+            aria-pressed={draft.competitive_mode}
+          >
+            <div class="text-xs font-black tracking-wide">Competitive Mode</div>
+            <div class="text-[11px] text-ink-dim mt-0.5">Ultra-low motion latency sensor sampling for competitive play.</div>
+          </button>
+        </div>
+      </section>
+    {/if}
   </div>
 </div>

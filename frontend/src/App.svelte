@@ -433,7 +433,7 @@
   });
 </script>
 
-<div class="flex h-screen w-screen overflow-hidden bg-canvas text-ink select-none">
+<div class="flex h-screen w-screen overflow-hidden bg-canvas text-ink">
   <!-- Left Sidebar matching Keychron BM24 + Glorious palette -->
   <Sidebar
     {device}
@@ -449,7 +449,7 @@
   <!-- Main View Area -->
   <main class="flex min-w-0 flex-1 flex-col bg-canvas overflow-hidden">
     {#if activeTab === 'customize'}
-      <div class="flex min-h-0 flex-1 flex-col p-6">
+      <div class="flex min-h-0 flex-1 flex-col px-5 py-4">
         <Stage
           {device}
           {mappings}
@@ -526,7 +526,7 @@
 
     <!-- Toast Notification -->
     {#if toastMessage}
-      <div class="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full border border-glorious/50 bg-zinc-900/95 px-5 py-2.5 text-xs font-bold text-glorious shadow-[0_0_24px_rgba(255,184,0,0.4)] backdrop-blur">
+      <div role="status" aria-live="polite" class="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-md border border-glorious/40 bg-panel px-4 py-2.5 text-xs font-semibold text-glorious shadow-lg">
         <span class="h-2 w-2 rounded-full bg-glorious shadow-[0_0_8px_#ffb800]"></span>
         <span>{toastMessage}</span>
       </div>

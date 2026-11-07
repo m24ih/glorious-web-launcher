@@ -40,17 +40,19 @@
   );
 </script>
 
-<aside class="flex h-full w-[320px] shrink-0 flex-col gap-4 border-r border-edge bg-panel px-5 py-6">
+<aside class="flex h-full w-[200px] shrink-0 flex-col overflow-y-auto border-r border-edge bg-panel px-3 py-4">
   <!-- Brand -->
-  <div class="flex items-center gap-3 px-1">
-    <img src="/brand/logo.png" alt="Glorious" class="h-10 w-14 object-contain" />
-    <div>
-      <div class="text-sm font-bold tracking-[0.22em] text-ink">GLORIOUS</div>
-      <div class="text-[10px] font-medium tracking-[0.3em] text-ink-faint">WEB LAUNCHER</div>
+  <div class="flex items-center gap-2 px-1">
+    <img src="/brand/logo.png" alt="Glorious" class="h-8 w-10 shrink-0 object-contain" />
+    <div class="min-w-0">
+      <div class="truncate text-xs font-bold tracking-[0.16em] text-ink">GLORIOUS</div>
+      <div class="truncate text-[8px] font-medium tracking-[0.18em] text-ink-faint">WEB LAUNCHER</div>
     </div>
     <div
-      class="ml-auto flex items-center gap-1.5 rounded-full border border-edge bg-card px-2.5 py-1 text-[10px]"
+      class="ml-auto flex shrink-0 items-center gap-1 rounded border border-edge bg-card px-1.5 py-1 text-[9px]"
       title="WebSocket status"
+      role="status"
+      aria-live="polite"
     >
       <span
         class="h-1.5 w-1.5 rounded-full animate-pulse-soft"
@@ -61,7 +63,7 @@
   </div>
 
   <!-- Device card -->
-  <div class="rounded-2xl border border-edge bg-card p-4">
+  <div class="mt-4 rounded-md border border-edge bg-card p-3">
     {#if device}
       <div class="flex items-center gap-2">
         <span class="h-2 w-2 shrink-0 rounded-full" style="background: {statusColor}; box-shadow: 0 0 8px {statusColor}"></span>
@@ -71,9 +73,9 @@
         {#if device.error}<span class="text-[#ff5c5c]">{device.error}</span>{:else}{connectionMode}{/if}
       </div>
 
-      <div class="mt-3 flex items-center gap-2">
+      <div class="mt-3 grid gap-2">
         {#if batteryPct !== null}
-          <div class="flex flex-1 items-center gap-2 rounded-full border border-edge bg-canvas px-3 py-1.5">
+          <div class="flex items-center gap-2 rounded border border-edge bg-canvas px-2 py-1.5">
             <span class="inline-flex items-center text-glorious">
               {#if device.battery?.charging}
                 <Battery size={16} />
@@ -99,7 +101,7 @@
           </div>
         {/if}
         <div
-          class="flex items-center gap-1.5 rounded-full border border-edge bg-canvas px-3 py-1.5 text-xs text-ink-dim"
+          class="flex items-center gap-1.5 rounded border border-edge bg-canvas px-2 py-1.5 text-[11px] text-ink-dim"
           title="Connection mode"
         >
           {#if connectionMode === 'Dongle' || connectionMode === 'Wireless'}
@@ -122,16 +124,17 @@
   </div>
 
   <!-- Profile switch -->
-  <div>
+  <div class="mt-4">
     <div class="mb-2 px-1 text-[10px] font-semibold tracking-[0.18em] text-ink-faint">PROFILE</div>
-    <div class="flex gap-2">
+    <div class="grid grid-cols-2 gap-1.5">
       {#each Array.from({ length: caps?.maxProfiles ?? 3 }, (_, i) => i + 1) as n (n)}
         <button
           type="button"
-          class="flex-1 rounded-full border py-1.5 text-xs font-semibold {activeProfile === n
-            ? 'border-glorious bg-glorious/10 text-glorious'
+          class="rounded border px-1 py-1.5 text-[10px] font-semibold {activeProfile === n
+            ? 'border-[#5468e7] bg-[#4657c9] text-white'
             : 'border-edge bg-card text-ink-dim hover:border-edge-bright hover:text-ink'}"
           onclick={() => onProfileChange(n)}
+          aria-pressed={activeProfile === n}
         >
           Profile {n}
         </button>
@@ -140,23 +143,24 @@
   </div>
 
   <!-- Navigation -->
-  <nav class="flex flex-col gap-1 border-t border-edge pt-4">
+  <nav class="mt-4 flex flex-col gap-1 border-t border-edge pt-3" aria-label="Device settings">
     {#each visibleTabs as tab (tab.id)}
       {@const Icon = tab.icon}
       <button
         type="button"
-        class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium {activeTab === tab.id
-          ? 'bg-card text-glorious shadow-[inset 2px 0 0_#ffb800]'
+        class="flex items-center gap-2 rounded px-2.5 py-2 text-xs font-medium {activeTab === tab.id
+          ? 'bg-[#4657c9] text-white'
           : 'text-ink-dim hover:bg-card hover:text-ink'}"
         onclick={() => onTabChange(tab.id)}
+        aria-current={activeTab === tab.id ? 'page' : undefined}
       >
-        <Icon size={17} class={activeTab === tab.id ? 'text-glorious' : 'text-ink-faint'} />
+        <Icon size={15} class={activeTab === tab.id ? 'text-white' : 'text-ink-faint'} />
         {tab.label}
       </button>
     {/each}
   </nav>
 
-  <div class="mt-auto flex items-center justify-between px-1 text-[10px] text-ink-faint">
+  <div class="mt-auto flex flex-col gap-0.5 border-t border-edge px-1 pt-3 text-[9px] text-ink-faint">
     <span>Launcher v{LAUNCHER_VERSION}</span>
     <span>Service v{serviceVersion || '—'}</span>
   </div>
