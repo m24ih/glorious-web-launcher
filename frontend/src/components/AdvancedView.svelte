@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { Lock, Power, TriangleAlert } from 'lucide-svelte';
+  import { Lock, Power, TriangleAlert, ShieldCheck } from 'lucide-svelte';
   import type { DeviceView, ScrollDirection, SettingsDraft } from '../lib/types';
-  import { SLEEP_OPTIONS, clamp, rangeFill } from '../lib/actions';
+  import { SLEEP_OPTIONS, clamp } from '../lib/actions';
 
   interface Props {
     draft: SettingsDraft;
@@ -14,8 +14,8 @@
   let { draft, onChange, onFactoryReset, device = null, caps }: Props = $props();
 
   const LOD_OPTIONS = [
-    { value: 1, label: '1 mm', hint: 'Low lift-off' },
-    { value: 2, label: '2 mm', hint: 'High lift-off' },
+    { value: 1, label: '1.0 mm', hint: 'Low (Competitive tracking)' },
+    { value: 2, label: '2.0 mm', hint: 'High (Thick mousepad / rough surfaces)' },
   ] as const;
 
   const SCROLL_MODES: Array<{ value: ScrollDirection; label: string }> = [
@@ -28,13 +28,18 @@
   const isConnected = $derived(
     device?.connected === true && device?.status === 'connected',
   );
-  const deviceLabel = $derived(device?.name ?? 'No device');
+  const deviceLabel = $derived(device?.name ?? 'Glorious Device');
   const profileCount = $derived(
     device?.profiles ? Math.max(Object.keys(device.profiles).length, 1) : 3,
   );
 
+  // Check whether any advanced sensor DSP features are actually supported on this hardware
+  const hasAnySensorDsp = $derived(
+    Boolean(caps?.hasAngleSnapping || caps?.hasRippleControl || caps?.hasMotionSync)
+  );
+
   function formatSleep(value: number | 'off'): string {
-    if (value === 'off' || value === 0) return 'Disabled';
+    if (value === 'off' || value === 0) return 'Disabled (Always On)';
     if (value % 60 === 0) {
       const minutes = value / 60;
       return minutes >= 60 ? `${minutes / 60} hr` : `${minutes} min`;
@@ -76,317 +81,330 @@
   }}
 />
 
-{#snippet toggleRow(
-  label: string,
-  description: string,
-  value: boolean,
-  onToggle: () => void,
-)}
-  <div
-    class="flex items-center justify-between gap-4 rounded-xl border border-edge bg-canvas/50 px-4 py-3"
-  >
-    <div class="min-w-0">
-      <div class="flex items-center gap-2">
-        <span class="text-sm font-semibold text-ink">{label}</span>
-        {#if value}
-          <span
-            class="h-1.5 w-1.5 rounded-full bg-glorious shadow-[0_0_6px_#ffb800]"
-          ></span>
-        {/if}
-      </div>
-      <p class="mt-0.5 text-[11px] leading-snug text-ink-dim">{description}</p>
-    </div>
-    <button
-      type="button"
-      role="switch"
-      aria-checked={value}
-      aria-label={label}
-      onclick={onToggle}
-      class="flex h-6 w-11 shrink-0 items-center rounded-full border px-0.5 transition {value
-        ? 'border-glorious/60 bg-glorious/25 shadow-[0_0_12px_rgba(255,184,0,0.25)]'
-        : 'border-edge-bright bg-edge'}"
-    >
-      <span
-        class="h-[18px] w-[18px] rounded-full transition-transform duration-200 {value
-          ? 'translate-x-[22px] bg-glorious shadow-[0_0_8px_rgba(255,184,0,0.7)]'
-          : 'translate-x-0 bg-ink-dim'}"
-      ></span>
-    </button>
-  </div>
-{/snippet}
-
-<div class="flex-1 overflow-y-auto p-8">
-  <div class="mx-auto max-w-[800px] space-y-8">
+<div class="flex-1 overflow-y-auto p-6 lg:p-8">
+  <div class="mx-auto max-w-[860px] space-y-6">
     <!-- Header -->
-    <div class="flex flex-wrap items-start justify-between gap-4">
+    <div class="flex flex-wrap items-end justify-between gap-4 border-b border-edge/60 pb-4">
       <div>
-        <h2 class="text-xl font-bold text-ink">Advanced Settings</h2>
+        <h2 class="text-lg font-bold tracking-tight text-ink">Advanced & System Settings</h2>
         <p class="text-xs text-ink-dim">
-          Sensor behaviour, click debounce, and wireless power management. Changes
-          are staged until you press Apply to Mouse.
+          Surface tracking distance, switch debounce filtering, wireless power management, and safety locks.
         </p>
       </div>
       <div
         class="flex items-center gap-2 rounded-full border border-edge bg-card px-3 py-1.5 text-[11px] text-ink-dim"
-        title="Connected device"
+        title="Connected hardware"
       >
         <span
-          class="h-1.5 w-1.5 rounded-full"
-          style="background: {isConnected ? '#2dff6a' : '#6b6b75'}"
+          class="h-2 w-2 rounded-full shadow-[0_0_8px_currentColor]"
+          style="color: {isConnected ? '#11c468' : '#6b6b75'}; background: currentColor;"
         ></span>
-        <span class="max-w-[180px] truncate">{deviceLabel}</span>
+        <span class="max-w-[200px] truncate font-medium">{deviceLabel}</span>
       </div>
     </div>
 
-    <!-- System Features -->
-    <section class="rounded-2xl border border-edge bg-card p-6">
-      <div class="mb-4">
-        <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">
-          SYSTEM FEATURES
-        </h3>
-        <p class="mt-1 text-xs text-ink-dim">
-          Low-level sensor and button behaviour tuned for competitive play.
-        </p>
-      </div>
-
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {#if caps?.hasAngleSnapping}
-          {@render toggleRow(
-            'Angle Snapping',
-            'Locks near-horizontal or near-vertical movement to a straight line.',
-            draft.angle_snap,
-            () => onChange((prev) => ({ ...prev, angle_snap: !prev.angle_snap })),
-          )}
-        {:else}
-          <div class="rounded-xl border border-amber-500/40 bg-amber-950/40 px-4 py-3 text-[11px] leading-snug text-amber-300">
-            <div class="font-bold">Angle Snapping</div>
-            <div>Hardware unsupported on {device?.name ?? 'this device'} (Requires Model O 2 / BAMF 2.0)</div>
+    <!-- Lift-Off Distance & Debounce Time Row -->
+    <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+      <!-- Lift-Off Distance (LOD) -->
+      <section class="rounded-2xl border border-edge bg-card p-5 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">
+              LIFT-OFF DISTANCE (LOD)
+            </h3>
+            <span class="rounded-full border border-edge bg-canvas px-2.5 py-0.5 text-[11px] font-bold text-glorious">
+              {draft.lod}.0 mm
+            </span>
           </div>
-        {/if}
-        {#if caps?.hasRippleControl}
-          {@render toggleRow(
-            'Ripple Control',
-            'Tames click and scroll spam so rapid inputs stay consistent.',
-            draft.ripple_control,
-            () => onChange((prev) => ({ ...prev, ripple_control: !prev.ripple_control })),
-          )}
-        {:else}
-          <div class="rounded-xl border border-amber-500/40 bg-amber-950/40 px-4 py-3 text-[11px] leading-snug text-amber-300">
-            <div class="font-bold">Ripple Control</div>
-            <div>Hardware unsupported on {device?.name ?? 'this device'} (Requires Model O 2 / BAMF 2.0)</div>
-          </div>
-        {/if}
-        {#if caps?.hasMotionSync}
-          {@render toggleRow(
-            'Motion Sync',
-            'Aligns sensor sampling with the USB report interval for smoother sweeps.',
-            draft.motion_sync,
-            () => onChange((prev) => ({ ...prev, motion_sync: !prev.motion_sync })),
-          )}
-        {:else}
-          <div class="rounded-xl border border-amber-500/40 bg-amber-950/40 px-4 py-3 text-[11px] leading-snug text-amber-300">
-            <div class="font-bold">Motion Sync</div>
-            <div>Hardware unsupported on {device?.name ?? 'this device'} (Requires Model O 2 / BAMF 2.0)</div>
-          </div>
-        {/if}
-        {@render toggleRow(
-          'Left Click Lock',
-          'Safeguard that keeps the left click usable even if a profile binding disables it.',
-          draft.left_click_lock,
-          () =>
-            onChange((prev) => ({
-              ...prev,
-              left_click_lock: !prev.left_click_lock,
-            })),
-        )}
-      </div>
-
-      {#if !draft.left_click_lock}
-        <div
-          class="mt-3 flex items-start gap-2 rounded-xl border border-[#ffb800]/40 bg-[#ffb800]/[0.08] px-4 py-3 text-[11px] leading-snug text-[#ffd257]"
-        >
-          <Lock size={14} class="mt-0.5 shrink-0" />
-          <span>
-            Left Click Lock is off. A profile can now bind away the left click,
-            which leaves the mouse without a primary button — enable the lock to
-            prevent that.
-          </span>
-        </div>
-      {/if}
-
-      <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <!-- Scrolling direction -->
-        <div class="rounded-xl border border-edge bg-canvas/50 p-4">
-          <h4 class="text-xs font-bold tracking-[0.18em] text-ink-faint">
-            SCROLLING DIRECTION
-          </h4>
-          <p class="mt-1 text-[11px] text-ink-dim">
-            Invert the wheel axis for your desktop environment.
+          <p class="text-xs text-ink-dim mb-4">
+            The maximum height at which mouse movement is still detected and tracked by the sensor.
           </p>
-          <div class="mt-3 flex rounded-full border border-edge bg-canvas p-1">
-            {#each SCROLL_MODES as mode (mode.value)}
-              {@const isSelected = draft.scroll_direction === mode.value}
-              <button
-                type="button"
-                class="flex-1 rounded-full px-3 py-1.5 text-xs font-bold transition {isSelected
-                  ? 'bg-glorious/15 text-glorious shadow-[inset_0_0_0_1px_rgba(255,184,0,0.55)]'
-                  : 'text-ink-dim hover:text-ink'}"
-                aria-pressed={isSelected}
-                onclick={() => setScrollDirection(mode.value)}
-              >
-                {mode.label}
-              </button>
-            {/each}
-          </div>
         </div>
 
-        <!-- Lift-off distance -->
-        <div class="rounded-xl border border-edge bg-canvas/50 p-4">
-          <h4 class="text-xs font-bold tracking-[0.18em] text-ink-faint">
-            LIFT-OFF DISTANCE (LOD)
-          </h4>
-          <p class="mt-1 text-[11px] text-ink-dim">
-            Sensor tracking cut-off height above the surface.
-          </p>
-          <div class="mt-3 flex gap-2">
+        <div>
+          <div class="flex gap-3">
             {#each LOD_OPTIONS as opt (opt.value)}
               {@const isSelected = draft.lod === opt.value}
               <button
                 type="button"
-                class="flex-1 rounded-full border py-2 text-xs font-bold transition {isSelected
-                  ? 'border-glorious/60 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.25)]'
-                  : 'border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
+                class="flex-1 rounded-xl p-3 text-left transition cursor-pointer {isSelected
+                  ? 'border border-glorious/80 bg-zinc-900 text-glorious ring-1 ring-glorious/50 shadow-[0_0_14px_rgba(255,184,0,0.20)]'
+                  : 'border border-edge bg-canvas/60 text-ink-dim hover:border-edge-bright hover:text-ink'}"
                 aria-pressed={isSelected}
-                title={opt.hint}
                 onclick={() => setLod(opt.value)}
               >
-                {opt.label}
+                <div class="text-sm font-extrabold">{opt.label}</div>
+                <div class="text-[10px] text-ink-faint mt-1 leading-snug">{opt.hint}</div>
               </button>
             {/each}
           </div>
-        </div>
-      </div>
-    </section>
-
-    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-      <!-- Debounce -->
-      <section class="rounded-2xl border border-edge bg-card p-6">
-        <div class="mb-4 flex items-start justify-between gap-4">
-          <div class="min-w-0 flex-1">
-            <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">
-              DEBOUNCE TIME
-            </h3>
-            <p class="mt-1 text-xs text-ink-dim">
-              Switch debounce window. Lower reacts faster, higher filters chatter.
-            </p>
+          <div class="mt-3 flex items-center gap-1.5 text-[10px] text-ink-faint">
+            <ShieldCheck size={12} class="text-emerald-400" />
+            <span>Calibrated for Glorious Model O Wireless sensor LOD registers.</span>
           </div>
-          <span
-            class="shrink-0 whitespace-nowrap rounded-full border border-edge bg-canvas px-3 py-1 text-xs font-bold text-glorious tabular-nums"
-          >
-            {draft.debounce_ms} ms
-          </span>
         </div>
-
-        <input
-          type="range"
-          min="0"
-          max="16"
-          step="1"
-          value={draft.debounce_ms}
-          style="--fill: {rangeFill(draft.debounce_ms, 0, 16)}"
-          oninput={(e) => setDebounce(parseInt(e.currentTarget.value, 10))}
-          class="w-full"
-          aria-label="Debounce time in milliseconds"
-        />
-
-        <div class="mt-3 flex items-center gap-3">
-          <span
-            class="rounded-full border border-[#ff5c5c]/40 bg-[#ff5c5c]/10 px-2.5 py-0.5 text-[10px] font-bold text-[#ff8a8a]"
-          >
-            FAST · 0 ms
-          </span>
-          <div class="h-px flex-1 bg-edge"></div>
-          <span
-            class="rounded-full border border-[#2dff6a]/40 bg-[#2dff6a]/10 px-2.5 py-0.5 text-[10px] font-bold text-[#7dffa8]"
-          >
-            SAFE · 16 ms
-          </span>
-        </div>
-        <p class="mt-3 text-[11px] leading-snug text-ink-faint">
-          {#if draft.debounce_ms <= 3}
-            Fastest response — best for tracking-heavy aiming, but chatter on worn
-            switches can double-fire.
-          {:else if draft.debounce_ms <= 8}
-            Balanced — snappy clicks with a small safety margin.
-          {:else}
-            Safest — filters switch bounce aggressively at the cost of click
-            latency.
-          {/if}
-        </p>
       </section>
 
-      <!-- Power management -->
-      <section class="rounded-2xl border border-edge bg-card p-6">
-        <div class="mb-4 flex items-start justify-between gap-4">
-          <div class="min-w-0 flex-1">
-            <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">
-              POWER MANAGEMENT
+      <!-- Debounce Time -->
+      <section class="rounded-2xl border border-edge bg-card p-5 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">
+              DEBOUNCE TIME
             </h3>
-            <p class="mt-1 text-xs text-ink-dim">
-              Wireless sleep timer — idle time before the mouse drops into
-              low-power mode.
-            </p>
+            <span class="rounded-full border border-edge bg-canvas px-2.5 py-0.5 text-[11px] font-bold text-glorious tabular-nums">
+              {draft.debounce_ms} ms
+            </span>
           </div>
-          <span
-            class="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-edge bg-canvas px-3 py-1 text-xs font-bold text-glorious tabular-nums"
-          >
-            <Power size={12} />
-            {sleepReadout}
-          </span>
+          <p class="text-xs text-ink-dim mb-3">
+            Mechanical switch debounce window to filter contact bounce and prevent double-clicks.
+          </p>
         </div>
 
-        <div class="grid grid-cols-4 gap-2">
-          {#each SLEEP_OPTIONS as opt (opt.label)}
-            {@const isSelected = draft.sleep_seconds === opt.seconds}
-            <button
-              type="button"
-              class="rounded-full border py-2 text-[11px] font-bold transition {isSelected
-                ? 'border-glorious/60 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.25)]'
-                : 'border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
-              aria-pressed={isSelected}
-              onclick={() => setSleep(opt.seconds)}
-            >
-              {opt.label}
-            </button>
-          {/each}
-        </div>
+        <div>
+          <div class="relative py-2">
+            <input
+              type="range"
+              min="0"
+              max="16"
+              step="1"
+              value={draft.debounce_ms}
+              style="--fill: {(draft.debounce_ms / 16) * 100}%"
+              oninput={(e) => setDebounce(parseInt(e.currentTarget.value, 10))}
+              class="w-full cursor-pointer"
+              aria-label="Debounce time in milliseconds"
+            />
+          </div>
 
-        <p class="mt-4 text-[11px] leading-snug text-ink-faint">
-          Current timer readout: <span class="font-semibold text-ink-dim">{sleepReadout}</span>.
-          Applies to the wireless session; a wired connection stays awake.
-        </p>
+          <div class="mt-2 flex items-center justify-between text-[10px] font-medium text-ink-faint">
+            <span class="text-[#ff8a8a]">0 ms (Fastest response)</span>
+            <span class="text-[#7dffa8]">16 ms (Safest filter)</span>
+          </div>
+
+          <p class="mt-2 text-[11px] leading-snug text-ink-faint">
+            {#if draft.debounce_ms <= 2}
+              Ultra-fast latency for esports. Switch wear may cause inadvertent double clicks.
+            {:else if draft.debounce_ms <= 8}
+              Optimal competitive balance — snappy clicks with switch chatter protection.
+            {:else}
+              Conservative debounce — maximum double-click filtering for aged switches.
+            {/if}
+          </p>
+        </div>
       </section>
     </div>
 
-    <!-- Factory reset -->
-    <section
-      class="rounded-2xl border border-[#ff5c5c]/35 bg-[#2a0f12]/60 p-6"
-    >
-      <div
-        class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-      >
-        <div class="flex items-start gap-3">
-          <span
-            class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#ff5c5c]/40 bg-[#ff5c5c]/10 text-[#ff8a8a]"
+    <!-- Power Management (Wireless Sleep Timer) -->
+    <section class="rounded-2xl border border-edge bg-card p-5">
+      <div class="mb-3 flex items-start justify-between gap-4">
+        <div>
+          <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">
+            POWER MANAGEMENT (STANDBY TIMER)
+          </h3>
+          <p class="text-xs text-ink-dim">
+            Idle duration before the mouse enters low-power sleep mode over 2.4 GHz wireless.
+          </p>
+        </div>
+        <span class="flex shrink-0 items-center gap-1.5 rounded-full border border-edge bg-canvas px-3 py-1 text-[11px] font-bold text-glorious tabular-nums">
+          <Power size={12} />
+          {sleepReadout}
+        </span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-8">
+        {#each SLEEP_OPTIONS as opt (opt.label)}
+          {@const isSelected = draft.sleep_seconds === opt.seconds}
+          <button
+            type="button"
+            class="rounded-xl border py-2.5 text-center text-xs font-bold transition cursor-pointer {isSelected
+              ? 'border-glorious/80 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.20)] ring-1 ring-glorious/40'
+              : 'border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
+            aria-pressed={isSelected}
+            onclick={() => setSleep(opt.seconds)}
           >
+            {opt.label}
+          </button>
+        {/each}
+      </div>
+
+      <p class="mt-3 text-[11px] text-ink-faint">
+        Sleep timer applies to 2.4 GHz battery sessions. When plugged in via USB-C cable, the mouse remains awake continuously.
+      </p>
+    </section>
+
+    <!-- System Safety & Controls Row: Left Click Lock & Scrolling Direction -->
+    <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+      <!-- Left Click Lock -->
+      <section class="rounded-2xl border border-edge bg-card p-5 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">
+              LEFT CLICK LOCK
+            </h3>
+            <span class="rounded-full border border-edge bg-canvas px-2.5 py-0.5 text-[11px] font-bold {draft.left_click_lock ? 'text-emerald-400' : 'text-amber-400'}">
+              {draft.left_click_lock ? 'Locked' : 'Unlocked'}
+            </span>
+          </div>
+          <p class="text-xs text-ink-dim mb-4">
+            Safeguard that keeps the physical left button permanently assigned to Left Click.
+          </p>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between rounded-xl border border-edge bg-canvas/50 px-4 py-3">
+            <span class="text-xs font-semibold text-ink">
+              {draft.left_click_lock ? 'Safety Lock Enabled' : 'Safety Lock Disabled'}
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={draft.left_click_lock}
+              aria-label="Toggle Left Click Lock"
+              onclick={() => onChange((prev) => ({ ...prev, left_click_lock: !prev.left_click_lock }))}
+              class="flex h-6 w-11 shrink-0 items-center rounded-full border px-0.5 transition cursor-pointer {draft.left_click_lock
+                ? 'border-glorious/60 bg-glorious/25 shadow-[0_0_12px_rgba(255,184,0,0.25)]'
+                : 'border-edge-bright bg-edge'}"
+            >
+              <span
+                class="h-[18px] w-[18px] rounded-full transition-transform duration-200 {draft.left_click_lock
+                  ? 'translate-x-[22px] bg-glorious shadow-[0_0_8px_rgba(255,184,0,0.7)]'
+                  : 'translate-x-0 bg-ink-dim'}"
+              ></span>
+            </button>
+          </div>
+
+          {#if !draft.left_click_lock}
+            <div class="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-950/20 px-3 py-2 text-[11px] leading-snug text-amber-300">
+              <Lock size={13} class="mt-0.5 shrink-0" />
+              <span>Left Click Lock is disabled. You can now reassign or unbind button 1.</span>
+            </div>
+          {/if}
+        </div>
+      </section>
+
+      <!-- Scrolling Direction -->
+      <section class="rounded-2xl border border-edge bg-card p-5 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">
+              SCROLLING DIRECTION
+            </h3>
+            <span class="rounded-full border border-edge bg-canvas px-2.5 py-0.5 text-[11px] font-bold text-glorious capitalize">
+              {draft.scroll_direction}
+            </span>
+          </div>
+          <p class="text-xs text-ink-dim mb-4">
+            Invert the vertical scroll wheel orientation for your operating system or personal workflow.
+          </p>
+        </div>
+
+        <div class="flex gap-3">
+          {#each SCROLL_MODES as mode (mode.value)}
+            {@const isSelected = draft.scroll_direction === mode.value}
+            <button
+              type="button"
+              class="flex-1 rounded-xl py-3 text-xs font-bold transition text-center cursor-pointer {isSelected
+                ? 'border border-glorious/80 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.20)]'
+                : 'border border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
+              aria-pressed={isSelected}
+              onclick={() => setScrollDirection(mode.value)}
+            >
+              <div class="text-sm font-extrabold">{mode.label}</div>
+              <div class="text-[10px] text-ink-faint mt-0.5 font-normal">
+                {mode.value === 'standard' ? 'Default Desktop' : 'Inverted Wheel'}
+              </div>
+            </button>
+          {/each}
+        </div>
+      </section>
+    </div>
+
+    <!-- Conditional: Advanced Sensor DSP Filters (Only displayed if hardware actually supports it) -->
+    {#if hasAnySensorDsp}
+      <section class="rounded-2xl border border-edge bg-card p-5">
+        <div class="mb-3">
+          <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">
+            SENSOR DSP PERFORMANCE
+          </h3>
+          <p class="text-xs text-ink-dim">
+            Hardware trajectory smoothing, angular locking, and report sync.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {#if caps?.hasAngleSnapping}
+            <div class="flex items-center justify-between rounded-xl border border-edge bg-canvas/50 p-3.5">
+              <div>
+                <div class="text-xs font-bold text-ink">Angle Snapping</div>
+                <div class="text-[10px] text-ink-dim mt-0.5">Filters trajectory jitter into straight lines.</div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={draft.angle_snap}
+                aria-label="Toggle Angle Snapping"
+                onclick={() => onChange((prev) => ({ ...prev, angle_snap: !prev.angle_snap }))}
+                class="flex h-6 w-11 shrink-0 items-center rounded-full border px-0.5 transition cursor-pointer {draft.angle_snap ? 'border-glorious/60 bg-glorious/25' : 'border-edge bg-edge'}"
+              >
+                <span class="h-[18px] w-[18px] rounded-full transition-transform duration-200 {draft.angle_snap ? 'translate-x-[22px] bg-glorious' : 'translate-x-0 bg-ink-dim'}"></span>
+              </button>
+            </div>
+          {/if}
+
+          {#if caps?.hasRippleControl}
+            <div class="flex items-center justify-between rounded-xl border border-edge bg-canvas/50 p-3.5">
+              <div>
+                <div class="text-xs font-bold text-ink">Ripple Control</div>
+                <div class="text-[10px] text-ink-dim mt-0.5">Dampens high-DPI micro-jitter.</div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={draft.ripple_control}
+                aria-label="Toggle Ripple Control"
+                onclick={() => onChange((prev) => ({ ...prev, ripple_control: !prev.ripple_control }))}
+                class="flex h-6 w-11 shrink-0 items-center rounded-full border px-0.5 transition cursor-pointer {draft.ripple_control ? 'border-glorious/60 bg-glorious/25' : 'border-edge bg-edge'}"
+              >
+                <span class="h-[18px] w-[18px] rounded-full transition-transform duration-200 {draft.ripple_control ? 'translate-x-[22px] bg-glorious' : 'translate-x-0 bg-ink-dim'}"></span>
+              </button>
+            </div>
+          {/if}
+
+          {#if caps?.hasMotionSync}
+            <div class="flex items-center justify-between rounded-xl border border-edge bg-canvas/50 p-3.5">
+              <div>
+                <div class="text-xs font-bold text-ink">Motion Sync</div>
+                <div class="text-[10px] text-ink-dim mt-0.5">Syncs sensor frames with USB poll intervals.</div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={draft.motion_sync}
+                aria-label="Toggle Motion Sync"
+                onclick={() => onChange((prev) => ({ ...prev, motion_sync: !prev.motion_sync }))}
+                class="flex h-6 w-11 shrink-0 items-center rounded-full border px-0.5 transition cursor-pointer {draft.motion_sync ? 'border-glorious/60 bg-glorious/25' : 'border-edge bg-edge'}"
+              >
+                <span class="h-[18px] w-[18px] rounded-full transition-transform duration-200 {draft.motion_sync ? 'translate-x-[22px] bg-glorious' : 'translate-x-0 bg-ink-dim'}"></span>
+              </button>
+            </div>
+          {/if}
+        </div>
+      </section>
+    {/if}
+
+    <!-- Factory Reset (Keychron-style tactile danger card) -->
+    <section class="rounded-2xl border border-[#ff5c5c]/30 bg-[#2a0f12]/40 p-5">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-start gap-3">
+          <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#ff5c5c]/40 bg-[#ff5c5c]/10 text-[#ff8a8a]">
             <TriangleAlert size={18} />
           </span>
           <div>
-            <h3 class="text-sm font-bold text-ink">Factory Reset</h3>
-            <p class="mt-1 max-w-[460px] text-xs leading-snug text-ink-dim">
-              Restore all {profileCount} hardware profiles to factory defaults —
-              DPI stages, polling rate, debounce, LOD, sleep timer, button
-              bindings, and lighting. This cannot be undone.
+            <h3 class="text-sm font-bold text-ink">Factory Hardware Reset</h3>
+            <p class="mt-1 max-w-[500px] text-xs leading-snug text-ink-dim">
+              Restore all {profileCount} hardware onboard profiles to factory defaults —
+              DPI stages, polling rate, debounce, LOD, standby timer, button
+              bindings, and RGB lighting.
             </p>
           </div>
         </div>
@@ -395,15 +413,15 @@
           type="button"
           disabled={!device || !onFactoryReset}
           onclick={requestReset}
-          class="shrink-0 rounded-full border border-[#ff5c5c]/50 bg-[#ff5c5c]/10 px-5 py-2 text-xs font-bold text-[#ff8a8a] transition hover:border-[#ff5c5c] hover:bg-[#ff5c5c]/20 disabled:cursor-not-allowed disabled:opacity-40"
+          class="shrink-0 rounded-full border border-[#ff5c5c]/50 bg-[#ff5c5c]/10 px-5 py-2 text-xs font-bold text-[#ff8a8a] transition hover:border-[#ff5c5c] hover:bg-[#ff5c5c]/20 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
         >
           Reset Hardware
         </button>
       </div>
 
       {#if !device}
-        <p class="mt-4 text-[11px] text-[#ffb0b0]/80">
-          Connect a Glorious mouse to enable a hardware factory reset.
+        <p class="mt-3 text-[11px] text-[#ffb0b0]/80">
+          Connect your Glorious mouse to enable onboard hardware reset.
         </p>
       {/if}
     </section>
@@ -427,9 +445,7 @@
       class="pointer-events-auto w-full max-w-md rounded-2xl border border-[#ff5c5c]/40 bg-panel p-6 shadow-[0_24px_80px_rgba(0,0,0,0.7)]"
     >
       <div class="flex items-start gap-3">
-        <span
-          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#ff5c5c]/40 bg-[#ff5c5c]/10 text-[#ff8a8a]"
-        >
+        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#ff5c5c]/40 bg-[#ff5c5c]/10 text-[#ff8a8a]">
           <TriangleAlert size={20} />
         </span>
         <div>
@@ -439,7 +455,7 @@
           <p class="mt-1 text-xs leading-snug text-ink-dim">
             {deviceLabel} will be rewritten with factory defaults for all
             {profileCount} profiles. Custom DPI stages, colors, lighting, and
-            button bindings will be lost.
+            button bindings will be permanently reset.
           </p>
         </div>
       </div>
@@ -447,14 +463,14 @@
       <div class="mt-6 flex justify-end gap-2">
         <button
           type="button"
-          class="rounded-full border border-edge bg-card px-4 py-2 text-xs font-semibold text-ink-dim transition hover:border-edge-bright hover:text-ink"
+          class="rounded-full border border-edge bg-card px-4 py-2 text-xs font-semibold text-ink-dim transition hover:border-edge-bright hover:text-ink cursor-pointer"
           onclick={() => (confirmReset = false)}
         >
           Cancel
         </button>
         <button
           type="button"
-          class="rounded-full bg-[#ff5c5c] px-5 py-2 text-xs font-bold text-[#1a0507] shadow-[0_0_18px_rgba(255,92,92,0.35)] transition hover:bg-[#ff7a7a]"
+          class="rounded-full bg-[#ff5c5c] px-5 py-2 text-xs font-bold text-[#1a0507] shadow-[0_0_18px_rgba(255,92,92,0.35)] transition hover:bg-[#ff7a7a] cursor-pointer"
           onclick={confirmFactoryReset}
         >
           Yes, reset everything
