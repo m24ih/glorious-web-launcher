@@ -14,6 +14,7 @@ import type {
   EffectName,
   MacroDefinition,
   MacroEvent,
+  MacroItem,
   MacroRepeatMode,
   PinAction,
   PinId,
@@ -980,4 +981,215 @@ export function pinActionToButtonActionMacro(
     return { type: 'macro', macro_id: slot, repeat_mode, loop_count };
   }
   return { type: 'disabled' };
+}
+
+/* ── Macro Hardware Serialization (Sinowealth Protocol) ──────────────────── */
+
+export const KEY_TO_HID_CODE: Record<string, number> = {
+  // Letters
+  a: 0x04, b: 0x05, c: 0x06, d: 0x07, e: 0x08, f: 0x09, g: 0x0a,
+  h: 0x0b, i: 0x0c, j: 0x0d, k: 0x0e, l: 0x0f, m: 0x10, n: 0x11,
+  o: 0x12, p: 0x13, q: 0x14, r: 0x15, s: 0x16, t: 0x17, u: 0x18,
+  v: 0x19, w: 0x1a, x: 0x1b, y: 0x1c, z: 0x1d,
+  // Digits
+  '1': 0x1e, '2': 0x1f, '3': 0x20, '4': 0x21, '5': 0x22,
+  '6': 0x23, '7': 0x24, '8': 0x25, '9': 0x26, '0': 0x27,
+  // Modifiers
+  ctrl: 0xe0, control: 0xe0, lctrl: 0xe0, 'left ctrl': 0xe0,
+  shift: 0xe1, lshift: 0xe1, 'left shift': 0xe1,
+  alt: 0xe2, lalt: 0xe2, 'left alt': 0xe2,
+  win: 0xe3, windows: 0xe3, meta: 0xe3, cmd: 0xe3, command: 0xe3, gui: 0xe3,
+  rctrl: 0xe4, 'right ctrl': 0xe4,
+  rshift: 0xe5, 'right shift': 0xe5,
+  ralt: 0xe6, 'right alt': 0xe6, altgr: 0xe6,
+  rwin: 0xe7, 'right win': 0xe7,
+  // Standard keys
+  enter: 0x28, return: 0x28,
+  esc: 0x29, escape: 0x29,
+  backspace: 0x2a,
+  tab: 0x2b,
+  space: 0x2c, spacebar: 0x2c, ' ': 0x2c,
+  '-': 0x2d, '_': 0x2d, minus: 0x2d,
+  '=': 0x2e, '+': 0x2e, equal: 0x2e, plus: 0x2e,
+  '[': 0x2f, '{': 0x2f,
+  ']': 0x30, '}': 0x30,
+  '\\': 0x31, '|': 0x31, backslash: 0x31,
+  ';': 0x33, ':': 0x33, semicolon: 0x33,
+  "'": 0x34, '"': 0x34, quote: 0x34,
+  '`': 0x35, '~': 0x35, tilde: 0x35,
+  ',': 0x36, '<': 0x36, comma: 0x36,
+  '.': 0x37, '>': 0x37, dot: 0x37, period: 0x37,
+  '/': 0x38, '?': 0x38, slash: 0x38,
+  capslock: 0x39, 'caps lock': 0x39,
+  // Function keys
+  f1: 0x3a, f2: 0x3b, f3: 0x3c, f4: 0x3d, f5: 0x3e, f6: 0x3f,
+  f7: 0x40, f8: 0x41, f9: 0x42, f10: 0x43, f11: 0x44, f12: 0x45,
+  // Navigation & Editing
+  printscreen: 0x46, prtscn: 0x46,
+  scrolllock: 0x47, 'scroll lock': 0x47,
+  pause: 0x48, break: 0x48,
+  insert: 0x49,
+  home: 0x4a,
+  pageup: 0x4b, pgup: 0x4b, 'page up': 0x4b,
+  delete: 0x4c, del: 0x4c,
+  end: 0x4d,
+  pagedown: 0x4e, pgdn: 0x4e, 'page down': 0x4e,
+  arrowright: 0x4f, right: 0x4f, 'arrow right': 0x4f, 'right arrow': 0x4f,
+  arrowleft: 0x50, left: 0x50, 'arrow left': 0x50, 'left arrow': 0x50,
+  arrowdown: 0x51, down: 0x51, 'arrow down': 0x51, 'down arrow': 0x51,
+  arrowup: 0x52, up: 0x52, 'arrow up': 0x52, 'up arrow': 0x52,
+};
+
+export function keyToHidCode(key: string, keyCode?: number): number {
+  const norm = key.trim().toLowerCase();
+  if (KEY_TO_HID_CODE[norm] !== undefined) {
+    return KEY_TO_HID_CODE[norm];
+  }
+
+  // Single character uppercase/lowercase
+  if (norm.length === 1 && norm >= 'a' && norm <= 'z') {
+    return norm.charCodeAt(0) - 97 + 0x04;
+  }
+  if (norm.length === 1 && norm >= '0' && norm <= '9') {
+    return norm === '0' ? 0x27 : norm.charCodeAt(0) - 49 + 0x1e;
+  }
+
+  // Fn keys match: F1..F12
+  const fMatch = /^f([1-9]|1[0-2])$/.exec(norm);
+  if (fMatch) {
+    const num = parseInt(fMatch[1], 10);
+    return 0x3a + (num - 1);
+  }
+
+  // Fallback to keyCode if provided
+  if (keyCode) {
+    if (keyCode >= 65 && keyCode <= 90) return keyCode - 65 + 0x04;
+    if (keyCode >= 48 && keyCode <= 57) return keyCode === 48 ? 0x27 : keyCode - 49 + 0x1e;
+    if (keyCode >= 112 && keyCode <= 123) return keyCode - 112 + 0x3a;
+    if (keyCode === 13) return 0x28; // Enter
+    if (keyCode === 27) return 0x29; // Escape
+    if (keyCode === 8) return 0x2a; // Backspace
+    if (keyCode === 9) return 0x2b; // Tab
+    if (keyCode === 32) return 0x2c; // Space
+    if (keyCode === 16) return 0xe1; // Shift
+    if (keyCode === 17) return 0xe0; // Ctrl
+    if (keyCode === 18) return 0xe2; // Alt
+    if (keyCode === 91 || keyCode === 92) return 0xe3; // Win
+    if (keyCode === 37) return 0x50; // Left
+    if (keyCode === 38) return 0x52; // Up
+    if (keyCode === 39) return 0x4f; // Right
+    if (keyCode === 40) return 0x51; // Down
+    if (keyCode === 45) return 0x49; // Insert
+    if (keyCode === 46) return 0x4c; // Delete
+    if (keyCode === 36) return 0x4a; // Home
+    if (keyCode === 35) return 0x4d; // End
+    if (keyCode === 33) return 0x4b; // PgUp
+    if (keyCode === 34) return 0x4e; // PgDn
+  }
+
+  return 0;
+}
+
+export function resolveMouseHid(mouseButton?: number, key?: string): number {
+  if (typeof mouseButton === 'number') {
+    if (mouseButton === 1) return 1; // Left
+    if (mouseButton === 2) return 2; // Right
+    if (mouseButton === 3 || mouseButton === 4) return 4; // Middle
+    if (mouseButton === 4 || mouseButton === 8) return 8; // Back
+    if (mouseButton === 5 || mouseButton === 16) return 16; // Forward
+    return mouseButton & 0x1f;
+  }
+  if (key) {
+    const lower = key.toLowerCase();
+    if (lower.includes('left')) return 1;
+    if (lower.includes('right')) return 2;
+    if (lower.includes('middle')) return 4;
+    if (lower.includes('back')) return 8;
+    if (lower.includes('forward')) return 16;
+  }
+  return 1; // Default to Left button
+}
+
+/**
+ * Converts a macro definition to raw Sinowealth bytes:
+ * - Delay > 0: if <= 255: [0x20, delay], else [0x21, (delay >> 8) & 0xff, delay & 0xff]
+ * - Key Down: [0x02, hidCode]
+ * - Key Up: [0x03, hidCode]
+ * - Text: convert each char to down/up pair [0x02, hidCode, 0x03, hidCode]
+ * - Mouse Click / Down: [0x01, mouseHid] (where mouseHid: 1=Left, 2=Right, 4=Middle, 8=Back, 16=Forward)
+ */
+export function macroDefinitionToRawBytes(macro: MacroDefinition): number[] {
+  const bytes: number[] = [];
+
+  for (const event of macro.events) {
+    if (event.type === 'delay') {
+      const d = event.delay ?? 50;
+      if (d > 0) {
+        if (d <= 255) {
+          bytes.push(0x20, d);
+        } else {
+          bytes.push(0x21, (d >> 8) & 0xff, d & 0xff);
+        }
+      }
+      continue;
+    }
+
+    if (event.delay && event.delay > 0) {
+      const d = event.delay;
+      if (d <= 255) {
+        bytes.push(0x20, d);
+      } else {
+        bytes.push(0x21, (d >> 8) & 0xff, d & 0xff);
+      }
+    }
+
+    switch (event.type) {
+      case 'down': {
+        const code = keyToHidCode(event.key ?? '', event.keyCode);
+        if (code > 0) {
+          bytes.push(0x02, code);
+        }
+        break;
+      }
+      case 'up': {
+        const code = keyToHidCode(event.key ?? '', event.keyCode);
+        if (code > 0) {
+          bytes.push(0x03, code);
+        }
+        break;
+      }
+      case 'text': {
+        if (event.text) {
+          for (const char of event.text) {
+            const code = keyToHidCode(char);
+            if (code > 0) {
+              bytes.push(0x02, code, 0x03, code);
+            }
+          }
+        }
+        break;
+      }
+      case 'mouse': {
+        const mouseHid = resolveMouseHid(event.mouseButton, event.key);
+        bytes.push(0x01, mouseHid);
+        break;
+      }
+    }
+  }
+
+  return bytes;
+}
+
+export function macroDefinitionsToMacroItems(macros: MacroDefinition[]): MacroItem[] {
+  return macros.map((m) => {
+    const repeat_mode = m.repeatMode === 'toggle' ? 1 : m.repeatMode === 'while_holding' ? 2 : 0;
+    const loop_count = m.loopCount || 1;
+    return {
+      id: m.slot,
+      name: m.name || `Macro ${m.slot}`,
+      repeat_mode,
+      loop_count,
+      raw_bytes: macroDefinitionToRawBytes(m),
+    };
+  });
 }

@@ -91,6 +91,44 @@ pub fn build_request(target: u8, category: u8, opcode: u8, payload: &[u8]) -> [u
     buf
 }
 
+pub fn build_macro_delete_request(macro_id: u16) -> [u8; REPORT_LEN] {
+    build_request(
+        TARGET_MOUSE,
+        CATEGORY_MACRO,
+        0x02,
+        &[(macro_id >> 8) as u8, (macro_id & 0xFF) as u8],
+    )
+}
+
+pub fn build_macro_create_request(macro_id: u16, data_len: usize) -> [u8; REPORT_LEN] {
+    build_request(
+        TARGET_MOUSE,
+        CATEGORY_MACRO,
+        0x01,
+        &[
+            (macro_id >> 8) as u8,
+            (macro_id & 0xFF) as u8,
+            0x00,
+            0x00,
+            (data_len >> 8) as u8,
+            (data_len & 0xFF) as u8,
+        ],
+    )
+}
+
+pub fn build_macro_chunk_request(macro_id: u16, offset: usize, chunk: &[u8]) -> [u8; REPORT_LEN] {
+    let mut payload = Vec::with_capacity(7 + chunk.len());
+    payload.push((macro_id >> 8) as u8);
+    payload.push((macro_id & 0xFF) as u8);
+    payload.push(0x00);
+    payload.push(0x00);
+    payload.push((offset >> 8) as u8);
+    payload.push((offset & 0xFF) as u8);
+    payload.push(chunk.len() as u8);
+    payload.extend_from_slice(chunk);
+    build_request(TARGET_MOUSE, CATEGORY_MACRO, 0x03, &payload)
+}
+
 /// A decoded response. `data` always starts at the status byte, regardless of
 /// whether hidapi returned the report id or not.
 #[derive(Debug, Clone)]
@@ -452,6 +490,48 @@ impl SinowealthDevice {
         Ok(())
     }
 
+    fn write_macro_packet(&self, request: &[u8; REPORT_LEN], delay: Duration) -> Result<(), HidError> {
+        let opcode = request[6];
+        let mut last_error: Option<HidError> = None;
+        let attempts = 3;
+
+        for attempt in 0..attempts {
+            self.dev.send_feature_report(request)?;
+            thread::sleep(delay);
+
+            let mut raw = vec![0u8; REPORT_LEN];
+            let read = self.dev.get_feature_report(&mut raw)?;
+            raw.truncate(read);
+            let response = Response::normalize(&raw, opcode);
+
+            let status_byte = response.status_byte();
+            if status_byte == 0xA1 {
+                return Ok(());
+            } else if status_byte == 0xA4 {
+                return Err(HidError::Protocol {
+                    status: 0xA4,
+                    detail: "mouse is disconnected, asleep, or out of RF range".into(),
+                });
+            } else if status_byte == 0xA0 || status_byte == 0xA2 {
+                last_error = Some(HidError::Protocol {
+                    status: status_byte,
+                    detail: format!("{} (attempt {}/{attempts})", response.status().as_str(), attempt + 1),
+                });
+                thread::sleep(Duration::from_millis(40));
+            } else {
+                last_error = Some(HidError::Protocol {
+                    status: status_byte,
+                    detail: format!("{} (attempt {}/{attempts})", response.status().as_str(), attempt + 1),
+                });
+                thread::sleep(Duration::from_millis(40));
+            }
+        }
+
+        Err(last_error.unwrap_or_else(|| {
+            HidError::UnexpectedResponse(format!("no response for macro opcode 0x{opcode:02X}"))
+        }))
+    }
+
     fn read_firmware(&self, target: u8, delay: Duration) -> Result<String, HidError> {
         let response = self.transact(
             target,
@@ -686,6 +766,13 @@ impl SinowealthDevice {
             applied.push("buttons".to_string());
         }
 
+        if let Some(macros) = &patch.macros {
+            for m in macros {
+                self.set_macro(m.id, &m.raw_bytes)?;
+            }
+            applied.push("macros".to_string());
+        }
+
         Ok(applied)
     }
 
@@ -887,6 +974,32 @@ impl SinowealthDevice {
         let payload = build_button_payload(profile, binding);
         self.write(TARGET_MOUSE, CATEGORY_BUTTONS, 0x00, &payload)?;
         std::thread::sleep(Duration::from_millis(20));
+        Ok(())
+    }
+
+    pub fn delete_macro(&self, macro_id: u16) -> Result<(), HidError> {
+        let req = build_macro_delete_request(macro_id);
+        self.write_macro_packet(&req, Duration::from_millis(50))
+    }
+
+    pub fn create_macro(&self, macro_id: u16, data_len: usize) -> Result<(), HidError> {
+        let req = build_macro_create_request(macro_id, data_len);
+        self.write_macro_packet(&req, Duration::from_millis(50))
+    }
+
+    pub fn write_macro_chunk(&self, macro_id: u16, offset: usize, chunk: &[u8]) -> Result<(), HidError> {
+        let req = build_macro_chunk_request(macro_id, offset, chunk);
+        self.write_macro_packet(&req, Duration::from_millis(50))
+    }
+
+    pub fn set_macro(&self, macro_id: u16, data: &[u8]) -> Result<(), HidError> {
+        self.delete_macro(macro_id)?;
+        self.create_macro(macro_id, data.len())?;
+        for (i, chunk) in data.chunks(51).enumerate() {
+            let offset = i * 51;
+            self.write_macro_chunk(macro_id, offset, chunk)?;
+            thread::sleep(Duration::from_millis(50));
+        }
         Ok(())
     }
 }
@@ -1354,5 +1467,52 @@ mod tests {
             build_button_payload(3, &macro_hold),
             [3, 14, 0, 0x11, 0x02, 0x00, 0xCC, 0, 0, 0]
         );
+    }
+
+    #[test]
+    fn builds_macro_delete_request() {
+        let req = build_macro_delete_request(0x0102);
+        assert_eq!(req[0], REPORT_ID);
+        assert_eq!(req[3], TARGET_MOUSE);
+        assert_eq!(req[4], 2);
+        assert_eq!(req[5], CATEGORY_MACRO);
+        assert_eq!(req[6], 0x02);
+        assert_eq!(req[7], 0x01);
+        assert_eq!(req[8], 0x02);
+    }
+
+    #[test]
+    fn builds_macro_create_request() {
+        let req = build_macro_create_request(0x0203, 120);
+        assert_eq!(req[0], REPORT_ID);
+        assert_eq!(req[3], TARGET_MOUSE);
+        assert_eq!(req[4], 6);
+        assert_eq!(req[5], CATEGORY_MACRO);
+        assert_eq!(req[6], 0x01);
+        assert_eq!(req[7], 0x02);
+        assert_eq!(req[8], 0x03);
+        assert_eq!(req[9], 0x00);
+        assert_eq!(req[10], 0x00);
+        assert_eq!(req[11], 0x00);
+        assert_eq!(req[12], 120);
+    }
+
+    #[test]
+    fn builds_macro_chunk_request() {
+        let chunk = [0x02, 0x04, 0x20, 0x14, 0x03, 0x04];
+        let req = build_macro_chunk_request(0x0005, 51, &chunk);
+        assert_eq!(req[0], REPORT_ID);
+        assert_eq!(req[3], TARGET_MOUSE);
+        assert_eq!(req[4], (7 + chunk.len()) as u8);
+        assert_eq!(req[5], CATEGORY_MACRO);
+        assert_eq!(req[6], 0x03);
+        assert_eq!(req[7], 0x00);
+        assert_eq!(req[8], 0x05);
+        assert_eq!(req[9], 0x00);
+        assert_eq!(req[10], 0x00);
+        assert_eq!(req[11], 0x00);
+        assert_eq!(req[12], 51);
+        assert_eq!(req[13], chunk.len() as u8);
+        assert_eq!(&req[14..14 + chunk.len()], &chunk);
     }
 }

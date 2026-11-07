@@ -72,6 +72,42 @@ pub struct ButtonBinding {
     pub action: ButtonAction,
 }
 
+/// A single macro event record on the device.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MacroEventDto {
+    pub keydown: bool,
+    pub key: String,
+    pub times: u32,
+}
+
+/// One configured macro stored on the device.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MacroItem {
+    pub id: u16,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub repeat_mode: u8,
+    #[serde(default = "default_macro_loop_count")]
+    pub loop_count: u8,
+    pub raw_bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MacroDataDto {
+    pub id: u16,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub repeat_mode: u8,
+    #[serde(default = "default_macro_loop_count")]
+    pub loop_count: u8,
+    #[serde(default)]
+    pub events: Vec<MacroEventDto>,
+    #[serde(default)]
+    pub raw_bytes: Option<Vec<u8>>,
+}
+
 /// Live settings read back from the mouse.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SettingsView {
@@ -139,6 +175,8 @@ pub struct SettingsPatch {
     pub rgb: Option<RgbPatch>,
     #[serde(default)]
     pub buttons: Option<Vec<ButtonBinding>>,
+    #[serde(default)]
+    pub macros: Option<Vec<MacroItem>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -348,6 +386,7 @@ impl SettingsPatch {
             && self.sleep_seconds.is_none()
             && self.rgb.is_none()
             && self.buttons.is_none()
+            && self.macros.is_none()
     }
 
     /// Validate everything before the first HID write so a bad request cannot
@@ -461,6 +500,27 @@ impl SettingsPatch {
                     return Err(format!("button_id must be 1-32, got {}", b.button_id));
                 }
                 validate_button_binding(b)?;
+            }
+        }
+
+        if let Some(macros) = &self.macros {
+            for m in macros {
+                if m.id < 1 {
+                    return Err(format!("macro.id must be at least 1, got {}", m.id));
+                }
+                if m.repeat_mode > 2 {
+                    return Err(format!(
+                        "macro[{}].repeat_mode must be 0-2, got {}",
+                        m.id, m.repeat_mode
+                    ));
+                }
+                if m.raw_bytes.len() > 4096 {
+                    return Err(format!(
+                        "macro[{}].raw_bytes length exceeds 4096 bytes (got {})",
+                        m.id,
+                        m.raw_bytes.len()
+                    ));
+                }
             }
         }
 
@@ -811,5 +871,59 @@ mod tests {
             ..Default::default()
         };
         assert!(bad_loop.validate().is_err());
+    }
+
+    #[test]
+    fn validates_settings_patch_macros() {
+        let good = SettingsPatch {
+            macros: Some(vec![MacroItem {
+                id: 1,
+                name: "Test Macro".to_string(),
+                repeat_mode: 1,
+                loop_count: 3,
+                raw_bytes: vec![0x02, 0x04, 0x03, 0x04],
+            }]),
+            ..Default::default()
+        };
+        assert!(good.validate().is_ok());
+
+        // id == 0
+        let bad_id = SettingsPatch {
+            macros: Some(vec![MacroItem {
+                id: 0,
+                name: "Bad ID".to_string(),
+                repeat_mode: 0,
+                loop_count: 1,
+                raw_bytes: vec![],
+            }]),
+            ..Default::default()
+        };
+        assert!(bad_id.validate().is_err());
+
+        // repeat_mode > 2
+        let bad_repeat = SettingsPatch {
+            macros: Some(vec![MacroItem {
+                id: 1,
+                name: "Bad Repeat".to_string(),
+                repeat_mode: 3,
+                loop_count: 1,
+                raw_bytes: vec![],
+            }]),
+            ..Default::default()
+        };
+        assert!(bad_repeat.validate().is_err());
+
+        // raw_bytes > 4096
+        let bad_len = SettingsPatch {
+            macros: Some(vec![MacroItem {
+                id: 1,
+                name: "Huge Macro".to_string(),
+                repeat_mode: 0,
+                loop_count: 1,
+                raw_bytes: vec![0; 4097],
+            }]),
+            ..Default::default()
+        };
+        assert!(bad_len.validate().is_err());
     }
 }

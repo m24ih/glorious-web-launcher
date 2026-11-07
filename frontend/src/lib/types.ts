@@ -191,6 +191,14 @@ export interface ButtonBinding {
   action: ButtonAction;
 }
 
+export interface MacroItem {
+  id: number;
+  name?: string;
+  repeat_mode?: number;
+  loop_count?: number;
+  raw_bytes: number[];
+}
+
 export interface SettingsPatch {
   profile?: number;
   dpi_stages?: number[];
@@ -202,6 +210,7 @@ export interface SettingsPatch {
   sleep_seconds?: number;
   buttons?: ButtonBinding[];
   rgb?: RgbPatch;
+  macros?: MacroItem[];
 
   /* ── Keychron Launcher parity (advanced / angle tabs) ── */
   xy_split?: boolean;
@@ -299,7 +308,7 @@ export type PinId =
   | 'backward'
   | 'dpi';
 
-export type MacroEventType = 'down' | 'up' | 'delay' | 'text';
+export type MacroEventType = 'down' | 'up' | 'delay' | 'text' | 'mouse';
 export type MacroRepeatMode = 'no_repeat' | 'toggle' | 'while_holding';
 
 export interface MacroEvent {
@@ -309,6 +318,7 @@ export interface MacroEvent {
   keyCode?: number;
   delay?: number;
   text?: string;
+  mouseButton?: number;
 }
 
 export interface MacroDefinition {

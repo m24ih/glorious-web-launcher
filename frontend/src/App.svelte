@@ -520,7 +520,7 @@
       {:else if activeTab === 'firmware'}
         <FirmwareView {device} />
       {:else if activeTab === 'macro'}
-        <MacroView {activeTab} onTabChange={(t: string) => (activeTab = t as TabId)} />
+        <MacroView {activeTab} onTabChange={(t: string) => (activeTab = t as TabId)} {device} />
       {/if}
     {/if}
 

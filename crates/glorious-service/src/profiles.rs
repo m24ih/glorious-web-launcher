@@ -14,7 +14,8 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    effect_name_for, normalize_hex_color, ButtonBinding, LightingView, SettingsPatch, SettingsView,
+    effect_name_for, normalize_hex_color, ButtonBinding, LightingView, MacroItem, SettingsPatch,
+    SettingsView,
 };
 
 /// Configuration for one profile slot (1-based, 1 to 3).
@@ -59,6 +60,8 @@ impl ProfileConfig {
 pub struct DeviceProfileConfig {
     pub active_profile: u8,
     pub profiles: BTreeMap<u8, ProfileConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub macros: Option<Vec<MacroItem>>,
 }
 
 /// Root JSON structure saved to `profiles.json`.
@@ -269,6 +272,9 @@ impl ProfileStore {
         if let Some(buttons) = &patch.buttons {
             profile.buttons = Some(buttons.clone());
         }
+        if let Some(macros) = &patch.macros {
+            dev.macros = Some(macros.clone());
+        }
 
         self.save_locked(&data)
     }
@@ -350,6 +356,7 @@ pub fn sensible_default_device(_slug: &str) -> DeviceProfileConfig {
     DeviceProfileConfig {
         active_profile: 1,
         profiles,
+        macros: None,
     }
 }
 
@@ -560,6 +567,7 @@ pub fn import_glorious_core_db_from_str(content: &str) -> Result<ProfileStoreDat
             DeviceProfileConfig {
                 active_profile,
                 profiles,
+                macros: None,
             },
         );
     }

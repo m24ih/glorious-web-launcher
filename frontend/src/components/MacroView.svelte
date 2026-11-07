@@ -26,20 +26,34 @@
     RotateCcw,
   } from 'lucide-svelte';
   import { onDestroy } from 'svelte';
-  import { loadMacros, saveMacros, getMacroActionLabel } from '../lib/actions';
-  import type { MacroDefinition, MacroEvent, MacroRepeatMode } from '../lib/types';
+  import {
+    loadMacros,
+    saveMacros,
+    getMacroActionLabel,
+    macroDefinitionToRawBytes,
+  } from '../lib/actions';
+  import { applySettings } from '../lib/api';
+  import type {
+    DeviceView,
+    MacroDefinition,
+    MacroEvent,
+    MacroItem,
+    MacroRepeatMode,
+  } from '../lib/types';
 
   interface Props {
     activeTab: string;
     onTabChange: (tab: string) => void;
+    device?: DeviceView | null;
   }
 
-  let { activeTab, onTabChange }: Props = $props();
+  let { activeTab, onTabChange, device }: Props = $props();
 
   // State: loaded macros from storage + dirty edits
   let macros = $state<MacroDefinition[]>(loadMacros());
   let editingId = $state<string | null>(null); // which macro we're editing
   let isRecording = $state<boolean>(false);
+  let isSyncing = $state<boolean>(false);
   let recordedEvents: MacroEvent[] = $state<MacroEvent[]>([]);
   let recordStart = $state<number | null>(null);
 
@@ -283,17 +297,47 @@
     };
 
     macros = [...macros.slice(0, macroIndex), updated, ...macros.slice(macroIndex + 1)];
-    editingId = null;
-    timeline = [];
-    newMacroName = '';
-    newMacroSlot = 1;
-    repeatMode = 'no_repeat';
-    loopCount = 1;
-    timeDelayMode = 'dynamic';
-    fixedDelayMs = 50;
-    stopOnAnyKey = false;
+    editingId = updated.id;
+    newMacroName = updated.name;
+    newMacroSlot = updated.slot;
+    timeline = [...updated.events];
+    repeatMode = updated.repeatMode;
+    loopCount = updated.loopCount;
     saveMacros(macros);
     showToast('Macro saved');
+  }
+
+  // Sync macros to hardware
+  async function syncMacrosToMouse() {
+    const targetSlug = device?.slug;
+    if (!targetSlug) {
+      showToast('No device connected to sync macros to.');
+      return;
+    }
+
+    try {
+      isSyncing = true;
+      const macroItems: MacroItem[] = macros.map((m) => {
+        const repeat_mode =
+          m.repeatMode === 'toggle' ? 1 : m.repeatMode === 'while_holding' ? 2 : 0;
+        const loop_count = m.loopCount || 1;
+        return {
+          id: m.slot,
+          name: m.name || `Macro ${m.slot}`,
+          repeat_mode,
+          loop_count,
+          raw_bytes: macroDefinitionToRawBytes(m),
+        };
+      });
+
+      await applySettings(targetSlug, { macros: macroItems });
+      showToast('Macros synced to mouse hardware!');
+    } catch (e: any) {
+      console.error('Failed to sync macros:', e);
+      showToast(e?.message ?? 'Failed to sync macros to mouse');
+    } finally {
+      isSyncing = false;
+    }
   }
 
   // Get label for display
@@ -321,6 +365,18 @@
   function insertText() {
     timeline = [...timeline, { id: crypto.randomUUID(), type: 'text', text: '', delay: timeDelayMode === 'fixed' ? fixedDelayMs : 0 }];
   }
+  function insertMouseClick() {
+    timeline = [
+      ...timeline,
+      {
+        id: crypto.randomUUID(),
+        type: 'mouse',
+        key: 'Left Click',
+        mouseButton: 1,
+        delay: timeDelayMode === 'fixed' ? fixedDelayMs : 0,
+      },
+    ];
+  }
 
   // State sync handled directly via selectMacro
 
@@ -331,15 +387,30 @@
 </script>
 
 <div class="min-h-screen bg-canvas text-ink">
-  <div class="border-b border-edge/60">
-    <div class="mx-auto max-w-[1400px] px-6 lg:px-8">
-      <div class="flex items-start gap-3 rounded-xl border border-glorious/30 bg-amber-950/30 p-4">
+  <div class="border-b border-edge/60 bg-panel/30">
+    <div class="mx-auto max-w-[1400px] px-6 lg:px-8 py-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div class="flex items-start gap-3 rounded-xl border border-glorious/30 bg-amber-950/30 p-3 flex-1">
         <Info class="mt-0.5 flex-shrink-0 h-5 w-5 text-glorious" aria-hidden="true" />
         <div class="flex-1 text-sm text-amber-200 leading-relaxed">
           <span class="font-semibold text-glorious">Macro Assignment:</span>{' '}
           To assign a macro, select or save it here, then head over to the <span class="font-medium underline">Customize</span> tab and click any mouse button.
         </div>
       </div>
+      <button
+        type="button"
+        class="flex items-center justify-center gap-2 rounded-xl bg-glorious px-5 py-3 text-sm font-black text-zinc-950 shadow-[0_0_20px_rgba(255,184,0,0.4)] transition hover:bg-glorious-soft hover:shadow-[0_0_26px_rgba(255,184,0,0.6)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+        onclick={syncMacrosToMouse}
+        disabled={isSyncing}
+        title="Sync and write all macros to mouse onboard memory"
+      >
+        {#if isSyncing}
+          <Loader2 size={16} class="animate-spin" />
+          <span>Syncing to Mouse...</span>
+        {:else}
+          <Zap size={16} class="fill-current" />
+          <span>Sync Macros to Mouse</span>
+        {/if}
+      </button>
     </div>
   </div>
 
@@ -516,8 +587,9 @@
 
           <!-- Macro Name -->
           <div class="mb-5">
-            <label class="block text-[11px] font-bold tracking-[0.1em] uppercase text-ink-faint mb-2">Macro Name</label>
+            <label for="macro-name-input" class="block text-[11px] font-bold tracking-[0.1em] uppercase text-ink-faint mb-2">Macro Name</label>
             <input
+              id="macro-name-input"
               type="text"
               bind:value={newMacroName}
               class="w-full rounded-xl border border-edge bg-canvas px-4 py-2.5 text-sm outline-none focus:border-glorious focus:ring-1 focus:ring-glorious/30 placeholder:text-ink-faint"
@@ -527,7 +599,7 @@
 
           <!-- Time Delay Mode (Pills/Radio Tabs) -->
           <div class="mb-5">
-            <label class="block text-[11px] font-bold tracking-[0.1em] uppercase text-ink-faint mb-3">Time Delay Mode</label>
+            <span class="block text-[11px] font-bold tracking-[0.1em] uppercase text-ink-faint mb-3">Time Delay Mode</span>
             <div class="flex gap-2" role="radiogroup" aria-label="Time delay mode">
               {#each [
                 { value: 'disable', label: 'Disable Delay', desc: 'No delays between events' },
@@ -550,8 +622,9 @@
             </div>
             {#if timeDelayMode === 'fixed'}
               <div class="mt-3 flex items-center gap-3">
-                <label class="text-[11px] font-medium text-ink-dim">Fixed Delay (ms):</label>
+                <label for="fixed-delay-input" class="text-[11px] font-medium text-ink-dim">Fixed Delay (ms):</label>
                 <input
+                  id="fixed-delay-input"
                   type="number"
                   bind:value={fixedDelayMs}
                   min="0"
@@ -764,6 +837,11 @@
                             <span class="flex-shrink-0 h-3 w-3" aria-hidden="true">Aa</span>
                             <span class="ml-1 hidden sm:inline">Text</span>
                           </span>
+                        {:else if event.type === 'mouse'}
+                          <span class="inline-flex items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                            <span class="flex-shrink-0 h-3 w-3" aria-hidden="true">🖱</span>
+                            <span class="ml-1 hidden sm:inline">Mouse</span>
+                          </span>
                         {/if}
                       </td>
 
@@ -794,6 +872,26 @@
                             placeholder="Text to type..."
                             oninput={(e) => (event.text = (e.target as HTMLInputElement).value)}
                           />
+                        {:else if event.type === 'mouse'}
+                          <select
+                            value={event.key || 'Left Click'}
+                            class="w-full rounded border border-edge bg-canvas px-2 py-1.5 text-sm outline-none focus:border-glorious"
+                            onchange={(e) => {
+                              const val = (e.target as HTMLSelectElement).value;
+                              event.key = val;
+                              if (val === 'Left Click') event.mouseButton = 1;
+                              else if (val === 'Right Click') event.mouseButton = 2;
+                              else if (val === 'Middle Click') event.mouseButton = 4;
+                              else if (val === 'Backward') event.mouseButton = 8;
+                              else if (val === 'Forward') event.mouseButton = 16;
+                            }}
+                          >
+                            <option value="Left Click">Left Click</option>
+                            <option value="Right Click">Right Click</option>
+                            <option value="Middle Click">Middle Click</option>
+                            <option value="Backward">Backward (Side Back)</option>
+                            <option value="Forward">Forward (Side Front)</option>
+                          </select>
                         {/if}
                       </td>
 
@@ -858,7 +956,7 @@
               <span class="text-[11px] font-bold tracking-[0.1em] uppercase text-ink-faint">QUICK INSERT</span>
               <span class="text-[10px] text-ink-faint">Appends to end of sequence</span>
             </div>
-            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
               <button
                 type="button"
                 class="flex items-center justify-center gap-2 rounded-xl border border-edge bg-canvas px-3 py-2.5 text-sm font-medium text-ink-dim transition hover:border-cyan-500/40 hover:text-cyan-400 hover:bg-cyan-500/5 cursor-pointer"
@@ -890,6 +988,14 @@
               >
                 <span class="h-4 w-4 text-purple-400">Aa</span>
                 <span>Text Block</span>
+              </button>
+              <button
+                type="button"
+                class="flex items-center justify-center gap-2 rounded-xl border border-edge bg-canvas px-3 py-2.5 text-sm font-medium text-ink-dim transition hover:border-emerald-500/40 hover:text-emerald-400 hover:bg-emerald-500/5 cursor-pointer"
+                onclick={insertMouseClick}
+              >
+                <MousePointerClick size={15} class="text-emerald-400" />
+                <span>Mouse Click</span>
               </button>
             </div>
           </div>
