@@ -14,6 +14,8 @@ web launcher for Glorious mice without the Windows/Electron dependency.
 
 ## Quick start
 
+### Linux
+
 For a Linux desktop installation, install Rust/Cargo, Node.js and npm, a C
 compiler, `pkg-config`, and the libudev development files first (for example,
 `base-devel` and `systemd` on Arch, or `build-essential`, `pkg-config` and
@@ -30,8 +32,25 @@ the mouse or receiver afterwards. Running it again updates the installation;
 existing profiles and tray preferences are preserved. The installer enables
 and starts a systemd user service, which starts automatically at login. The
 application menu entry opens the running service in your browser. A tray host,
-session D-Bus, and `notify-send` are
-needed for desktop integration.
+session D-Bus, and `notify-send` are needed for desktop integration.
+
+### Windows
+
+For a Windows installation, ensure Rust, Node.js and Visual Studio C++ Build Tools (MSVC) are installed. Then run PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+The installer builds the frontend and release binary, installs them under
+`%LOCALAPPDATA%\glorious-launcher`, adds a Start Menu shortcut (`Glorious Web Launcher`),
+and configures a background autostart shortcut in your Startup folder without any console window.
+Profiles are saved under `%APPDATA%\glorious-launcher\profiles.json`.
+
+To uninstall:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
+```
 
 For development:
 
