@@ -14,7 +14,6 @@
 //! All HID calls are blocking, so handlers run them on `spawn_blocking`.
 
 pub mod api;
-#[cfg(target_os = "linux")]
 pub mod desktop;
 pub mod devices;
 pub mod hid;
@@ -22,6 +21,8 @@ pub mod manager;
 pub mod profiles;
 pub mod tray_settings;
 pub mod types;
+#[cfg(target_os = "windows")]
+pub mod windows_tray;
 pub mod ws;
 
 pub use devices::{DeviceDatabase, DeviceEntry};

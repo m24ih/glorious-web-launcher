@@ -1,22 +1,31 @@
+#[cfg(target_os = "linux")]
 use std::collections::HashMap;
+#[cfg(target_os = "linux")]
 use std::sync::Arc;
 
+#[cfg(target_os = "linux")]
 use ksni::menu::{MenuItem, StandardItem, SubMenu};
+#[cfg(target_os = "linux")]
 use ksni::TrayMethods;
+#[cfg(target_os = "linux")]
 use ksni::{Icon, ToolTip, Tray};
+#[cfg(target_os = "linux")]
 use tokio::sync::Notify;
 
+#[cfg(target_os = "linux")]
 use crate::api::AppState;
+#[cfg(target_os = "linux")]
 use crate::types::{DeviceStatusView, DeviceView, EffectSpec, RgbPatch, SettingsPatch};
+#[cfg(target_os = "linux")]
 use crate::ws::WsEvent;
 
-const COLOR_DISCONNECTED: [u8; 4] = [255, 110, 115, 120];
-const COLOR_CHARGING: [u8; 4] = [255, 52, 152, 219];
-const COLOR_BATTERY_GREEN: [u8; 4] = [255, 46, 204, 113];
-const COLOR_BATTERY_YELLOW: [u8; 4] = [255, 241, 196, 15];
-const COLOR_BATTERY_RED: [u8; 4] = [255, 231, 76, 60];
+pub const COLOR_DISCONNECTED: [u8; 4] = [255, 110, 115, 120];
+pub const COLOR_CHARGING: [u8; 4] = [255, 52, 152, 219];
+pub const COLOR_BATTERY_GREEN: [u8; 4] = [255, 46, 204, 113];
+pub const COLOR_BATTERY_YELLOW: [u8; 4] = [255, 241, 196, 15];
+pub const COLOR_BATTERY_RED: [u8; 4] = [255, 231, 76, 60];
 
-fn battery_color(connected: bool, battery: Option<(u8, bool)>) -> [u8; 4] {
+pub fn battery_color(connected: bool, battery: Option<(u8, bool)>) -> [u8; 4] {
     match (connected, battery) {
         (true, Some((_, true))) => COLOR_CHARGING,
         (true, Some((percent, false))) if percent <= 10 => COLOR_BATTERY_RED,
@@ -26,7 +35,7 @@ fn battery_color(connected: bool, battery: Option<(u8, bool)>) -> [u8; 4] {
     }
 }
 
-fn mouse_icon(color: [u8; 4]) -> Icon {
+pub fn raw_mouse_icon(color: [u8; 4]) -> Vec<u8> {
     let mut data = vec![0; 32 * 32 * 4];
     for y in 0..32_i32 {
         for x in 0..32_i32 {
@@ -42,13 +51,19 @@ fn mouse_icon(color: [u8; 4]) -> Icon {
             }
         }
     }
+    data
+}
+
+#[cfg(target_os = "linux")]
+fn mouse_icon(color: [u8; 4]) -> Icon {
     Icon {
         width: 32,
         height: 32,
-        data,
+        data: raw_mouse_icon(color),
     }
 }
 
+#[cfg(target_os = "linux")]
 fn device_icon(devices: &[DeviceView]) -> Icon {
     let battery = devices
         .iter()
@@ -65,7 +80,7 @@ fn device_icon(devices: &[DeviceView]) -> Icon {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-enum Notice {
+pub enum Notice {
     Connected,
     Disconnected,
     Charging,
@@ -74,15 +89,15 @@ enum Notice {
 }
 
 #[derive(Default)]
-struct DeviceState {
-    connected: bool,
-    charging: Option<bool>,
-    threshold: Option<u8>,
-    percentage: Option<u8>,
+pub struct DeviceState {
+    pub connected: bool,
+    pub charging: Option<bool>,
+    pub threshold: Option<u8>,
+    pub percentage: Option<u8>,
 }
 
 impl DeviceState {
-    fn update(&mut self, connected: bool, battery: Option<(u8, bool)>) -> Vec<Notice> {
+    pub fn update(&mut self, connected: bool, battery: Option<(u8, bool)>) -> Vec<Notice> {
         let mut notices = Vec::new();
         if connected != self.connected {
             notices.push(if connected {
@@ -132,6 +147,7 @@ impl DeviceState {
     }
 }
 
+#[cfg(target_os = "linux")]
 struct DesktopTray {
     url: String,
     devices: Vec<DeviceView>,
@@ -140,6 +156,7 @@ struct DesktopTray {
     settings: crate::tray_settings::TraySettings,
 }
 
+#[cfg(target_os = "linux")]
 impl Tray for DesktopTray {
     fn id(&self) -> String {
         "glorious-web-launcher".into()
@@ -433,6 +450,7 @@ impl Tray for DesktopTray {
     }
 }
 
+#[cfg(target_os = "linux")]
 #[derive(Clone, Copy)]
 enum Action {
     Dpi(u8),
@@ -443,6 +461,7 @@ enum Action {
     Brightness(u8),
 }
 
+#[cfg(target_os = "linux")]
 fn action_item(device: &DeviceView, label: String, action: Action) -> MenuItem<DesktopTray> {
     let slug = device.slug.clone();
     StandardItem { label, activate: Box::new(move |tray: &mut DesktopTray| {
@@ -488,23 +507,25 @@ fn action_item(device: &DeviceView, label: String, action: Action) -> MenuItem<D
     }), ..Default::default() }.into()
 }
 
-fn notify_error(name: &str, error: &str) {
+pub fn notify_error(name: &str, error: &str) {
     tracing::warn!(device = name, %error, "tray action failed");
     let name = name.to_string();
     let error = error.to_string();
     tokio::spawn(async move {
-        let _ = tokio::process::Command::new("notify-send")
-            .args([
-                "--app-name=Glorious Web Launcher",
-                "--urgency=normal",
-                &name,
-                &error,
-            ])
-            .status()
-            .await;
+        let mut notif = notify_rust::Notification::new();
+        notif.appname("Glorious Web Launcher")
+            .summary(&name)
+            .body(&error)
+            .urgency(notify_rust::Urgency::Normal);
+        #[cfg(target_os = "windows")]
+        {
+            notif.app_id("Glorious Web Launcher");
+        }
+        let _ = notif.show();
     });
 }
 
+#[cfg(target_os = "linux")]
 fn status_lines(devices: &[DeviceView]) -> Vec<String> {
     if devices.is_empty() {
         return vec!["No device connected".into()];
@@ -523,16 +544,34 @@ fn status_lines(devices: &[DeviceView]) -> Vec<String> {
         .collect()
 }
 
-fn open_browser(url: &str) {
-    let _ = std::process::Command::new("xdg-open")
-        .arg(url)
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn();
+pub fn open_browser(url: &str) {
+    #[cfg(target_os = "windows")]
+    {
+        let _ = std::process::Command::new("cmd")
+            .args(["/C", "start", url])
+            .spawn();
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let _ = std::process::Command::new("xdg-open")
+            .arg(url)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open")
+            .arg(url)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn();
+    }
 }
 
-fn notify(name: &str, notice: Notice) {
+pub fn notify(name: &str, notice: Notice) {
     let (urgency, body) = match notice {
         Notice::Connected => ("low", "Connected".to_string()),
         Notice::Disconnected => ("low", "Disconnected".to_string()),
@@ -545,26 +584,27 @@ fn notify(name: &str, notice: Notice) {
     };
     let name = name.to_string();
     tokio::spawn(async move {
-        if let Err(error) = tokio::process::Command::new("notify-send")
-            .args([
-                "--app-name=Glorious Web Launcher",
-                "--icon=input-mouse",
-                "--urgency",
-                urgency,
-                &name,
-                &body,
-            ])
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .await
+        let urg = match urgency {
+            "low" => notify_rust::Urgency::Low,
+            "critical" => notify_rust::Urgency::Critical,
+            _ => notify_rust::Urgency::Normal,
+        };
+        let mut notif = notify_rust::Notification::new();
+        notif.appname("Glorious Web Launcher")
+            .summary(&name)
+            .body(&body)
+            .urgency(urg);
+        #[cfg(target_os = "windows")]
         {
+            notif.app_id("Glorious Web Launcher");
+        }
+        if let Err(error) = notif.show() {
             tracing::warn!(%error, "could not send desktop notification");
         }
     });
 }
 
+#[cfg(target_os = "linux")]
 /// Start a Linux StatusNotifierItem and subscribe to the existing telemetry stream.
 pub fn spawn(state: &AppState, url: String, shutdown: Arc<Notify>) {
     let mut rx = state.tx.subscribe();
@@ -652,6 +692,7 @@ pub fn spawn(state: &AppState, url: String, shutdown: Arc<Notify>) {
 mod tests {
     use super::*;
 
+    #[cfg(target_os = "linux")]
     #[test]
     fn menu_shows_configured_shortcuts_only_for_supported_connected_devices() {
         let (db, _) = crate::devices::DeviceDatabase::load_default().unwrap();
@@ -778,14 +819,12 @@ mod tests {
 
     #[test]
     fn mouse_icon_has_transparent_background_and_colored_pixels() {
-        let icon = mouse_icon(COLOR_CHARGING);
-        assert_eq!((icon.width, icon.height), (32, 32));
-        assert_eq!(icon.data.len(), 32 * 32 * 4);
-        assert!(icon
-            .data
+        let icon_data = raw_mouse_icon(COLOR_CHARGING);
+        assert_eq!(icon_data.len(), 32 * 32 * 4);
+        assert!(icon_data
             .chunks_exact(4)
             .any(|pixel| pixel == COLOR_CHARGING));
-        assert!(icon.data.chunks_exact(4).any(|pixel| pixel == [0, 0, 0, 0]));
+        assert!(icon_data.chunks_exact(4).any(|pixel| pixel == [0, 0, 0, 0]));
     }
 
     #[test]

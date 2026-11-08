@@ -167,6 +167,10 @@ fn run_server(manager: Arc<DeviceManager>, options: Options) -> ExitCode {
         if options.desktop {
             glorious_service::desktop::spawn(&state, url.clone(), shutdown.clone());
         }
+        #[cfg(target_os = "windows")]
+        if options.desktop {
+            glorious_service::windows_tray::spawn(&state, url.clone(), shutdown.clone());
+        }
 
         if options.open_browser {
             open_browser(&url);
