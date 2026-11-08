@@ -1,6 +1,6 @@
 <script lang="ts">
   import { RefreshCw, Send } from 'lucide-svelte';
-  import { PIN_SPECS, DPI_COLORS, PIN_LABELS } from '../lib/actions';
+  import { PIN_SPECS, DPI_COLORS, PIN_LABELS, DOCK_ACTIONS } from '../lib/actions';
   import type { DeviceView, PinAction, PinId } from '../lib/types';
   import { i18n } from '../lib/i18n.svelte';
 
@@ -50,6 +50,19 @@
     const key = `stage.${pinId}`;
     const localized = i18n.t(key);
     return localized !== key ? localized : PIN_LABELS[pinId];
+  }
+
+  function getActionBadge(actionStr: string): string {
+    if (actionStr.startsWith('macro:')) {
+      return actionStr.replace('macro:', '');
+    }
+    const found = Object.values(DOCK_ACTIONS).flat().find((a) => a.label === actionStr || a.id === actionStr);
+    if (found) {
+      const key = `dock.action.${found.id}`;
+      const translated = i18n.t(key);
+      return translated !== key ? translated : found.label;
+    }
+    return actionStr;
   }
 </script>
 
@@ -160,7 +173,7 @@
               ? `left: ${spec.pillX}%; top: ${spec.pillY}%; transform: translate(-50%, -50%)`
               : `left: ${spec.pillX}%; top: ${spec.pillY}%; transform: translate(-50%, -50%)`}
             onclick={() => onSelect(spec.id)}
-            title="Select to remap {getPinName(spec.id)}"
+            title={i18n.t('stage.select_to_remap', { name: getPinName(spec.id) })}
           >
             <span
               class="text-[10px] font-semibold leading-tight {active ? 'text-white' : 'text-ink'}"
@@ -169,7 +182,7 @@
             </span>
             {#if mapped && mapped.action !== PIN_LABELS[spec.id]}
               <span class="mt-0.5 max-w-[90px] truncate rounded-full px-1.5 text-[9px] leading-tight" style="background: {stageColor(i)}22; color: {stageColor(i)}">
-                {mapped.action.startsWith('macro:') ? mapped.action.replace('macro:', '') : mapped.action}
+                {getActionBadge(mapped.action)}
               </span>
             {/if}
           </button>

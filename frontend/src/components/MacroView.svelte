@@ -40,6 +40,7 @@
     MacroItem,
     MacroRepeatMode,
   } from '../lib/types';
+  import { i18n } from '../lib/i18n.svelte';
 
   interface Props {
     activeTab: string;
@@ -394,8 +395,7 @@
       <div class="flex items-start gap-3 rounded-xl border border-glorious/30 bg-amber-950/30 p-3 flex-1">
         <Info class="mt-0.5 flex-shrink-0 h-5 w-5 text-glorious" aria-hidden="true" />
         <div class="flex-1 text-sm text-amber-200 leading-relaxed">
-          <span class="font-semibold text-glorious">Macro Assignment:</span>{' '}
-          To assign a macro, select or save it here, then head over to the <span class="font-medium underline">Customize</span> tab and click any mouse button.
+          {i18n.t('macro.banner')}
         </div>
       </div>
       <button
@@ -410,7 +410,7 @@
           <span>Syncing to Mouse...</span>
         {:else}
           <Zap size={16} class="fill-current" />
-          <span>Sync Macros to Mouse</span>
+          <span>{i18n.t('macro.sync_button')}</span>
         {/if}
       </button>
     </div>
@@ -423,7 +423,7 @@
       <!-- Sidebar Header -->
       <div class="border-b border-edge p-4">
         <div class="flex items-center justify-between mb-3">
-          <h2 class="text-sm font-bold tracking-[0.16em] uppercase text-ink-faint">MACRO LIST</h2>
+          <h2 class="text-sm font-bold tracking-[0.16em] uppercase text-ink-faint">{i18n.t('macro.list_title')}</h2>
           <span class="rounded-full border border-edge bg-canvas px-2.5 py-0.5 text-[11px] font-bold text-glorious tabular-nums">
             {visibleMacros.length} / {macros.length}
           </span>
@@ -433,7 +433,7 @@
           onclick={addMacro}
         >
           <Plus size={14} />
-          <span>+ New Macro</span>
+          <span>{i18n.t('macro.new_button')}</span>
         </button>
       </div>
 
@@ -443,7 +443,7 @@
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-faint" aria-hidden="true" />
           <input
             type="text"
-            placeholder="Search macros..."
+            placeholder={i18n.t('macro.search_placeholder')}
             class="w-full rounded-xl border border-edge bg-canvas pl-10 pr-4 py-2 text-sm outline-none focus:border-glorious focus:ring-1 focus:ring-glorious/30 placeholder:text-ink-faint"
             oninput={(e: Event) => (searchQuery = (e.target as HTMLInputElement).value)}
           />
@@ -458,7 +458,7 @@
           title="Import JSON"
         >
           <Download size={14} />
-          <span>Import</span>
+          <span>{i18n.t('macro.import')}</span>
         </button>
         <button
           class="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-edge bg-canvas px-3 py-2 text-sm font-medium text-ink-dim transition hover:border-edge-bright hover:text-ink"
@@ -466,7 +466,7 @@
           title="Export JSON"
         >
           <Copy size={14} />
-          <span>Export</span>
+          <span>{i18n.t('macro.export')}</span>
         </button>
       </div>
 
@@ -557,16 +557,16 @@
         <!-- Empty State -->
         <div class="flex flex-col items-center justify-center h-full text-center">
           <Palette class="h-20 w-20 text-ink-faint/20 mb-6" />
-          <h3 class="text-lg font-bold text-ink-dim mb-2">Select or Create a Macro</h3>
+          <h3 class="text-lg font-bold text-ink-dim mb-2">{i18n.t('macro.empty_title')}</h3>
           <p class="text-sm text-ink-faint max-w-md">
-            Choose a macro from the sidebar to edit its sequence, or click "+ New Macro" to start fresh.
+            {i18n.t('macro.empty_desc')}
           </p>
           <button
             class="mt-6 flex items-center gap-2 rounded-xl border border-glorious/40 bg-zinc-900 px-5 py-3 text-sm font-bold text-glorious transition hover:border-glorious hover:bg-glorious/10 shadow-[0_0_10px_rgba(255,184,0,0.15)]"
             onclick={addMacro}
           >
             <Plus size={16} />
-            <span>Create New Macro</span>
+            <span>{i18n.t('macro.create_new')}</span>
           </button>
         </div>
       {:else}

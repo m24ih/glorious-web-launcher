@@ -218,18 +218,18 @@
         <div class="space-y-3 text-center md:text-left">
           <div class="inline-flex items-center gap-2 rounded-full border border-glorious/30 bg-zinc-900/80 px-3 py-1 text-[11px] font-bold text-glorious shadow-[0_0_12px_rgba(255,184,0,0.2)]">
             <span class="h-2 w-2 rounded-full {isOff ? 'bg-zinc-600' : 'bg-emerald-400 animate-pulse'}"></span>
-            <span>{isOff ? 'HARDWARE LEDS OFF' : 'INSTANT LIVE HARDWARE SYNC'}</span>
+            <span>{isOff ? i18n.t('lighting.leds_off') : i18n.t('lighting.sync_live')}</span>
           </div>
           <div>
             <h3 class="text-lg font-black tracking-wide text-ink">{currentEffectLabel}</h3>
-            <p class="text-xs text-ink-dim">Real-time chassis diffusers and scroll wheel LED simulation.</p>
+            <p class="text-xs text-ink-dim">{i18n.t('lighting.hero_desc')}</p>
           </div>
           <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 pt-1">
             <span class="rounded-lg border border-edge bg-canvas/80 px-2.5 py-1 text-[11px] font-semibold text-ink-dim">
-              Brightness: <strong class="text-ink">{isOff ? '0%' : `${draft.lighting.brightness}%`}</strong>
+              {i18n.t('lighting.brightness_label')} <strong class="text-ink">{isOff ? '0%' : `${draft.lighting.brightness}%`}</strong>
             </span>
             <span class="rounded-lg border border-edge bg-canvas/80 px-2.5 py-1 text-[11px] font-semibold text-ink-dim">
-              Speed: <strong class="text-ink">{isOff ? '0%' : `${draft.lighting.rate}% (${animDuration.toFixed(1)}s)`}</strong>
+              {i18n.t('lighting.speed_label')} <strong class="text-ink">{isOff ? '0%' : `${draft.lighting.rate}% (${animDuration.toFixed(1)}s)`}</strong>
             </span>
             {#if currentEffect.colored && !isOff}
               <span class="inline-flex items-center gap-1.5 rounded-lg border border-edge bg-canvas/80 px-2.5 py-1 text-[11px] font-semibold text-ink-dim">
@@ -301,8 +301,8 @@
     <!-- Effects Cards Grid -->
     <section class="rounded-2xl border border-edge bg-card p-6">
       <div class="mb-4">
-        <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">LIGHTING EFFECT</h3>
-        <p class="mt-1 text-xs text-ink-dim">Choose an active RGB pattern for the chassis diffusers and scroll wheel.</p>
+        <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">{i18n.t('lighting.effect_header')}</h3>
+        <p class="mt-1 text-xs text-ink-dim">{i18n.t('lighting.effect_desc')}</p>
       </div>
 
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
@@ -329,7 +329,7 @@
             <div class="relative h-3 w-full overflow-hidden rounded-full border border-edge/60 bg-zinc-950">
               {#if effect.id === 0}
                 <div class="flex h-full w-full items-center justify-center bg-zinc-900 text-[9px] font-bold tracking-wider text-ink-faint uppercase">
-                  LEDs Inactive
+                  {i18n.t('lighting.leds_inactive')}
                 </div>
               {:else}
                 <div
@@ -349,9 +349,9 @@
       <section class="rounded-2xl border border-edge bg-card p-6">
         <div class="mb-4 flex items-center justify-between">
           <div>
-            <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">BRIGHTNESS</h3>
+            <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">{i18n.t('lighting.brightness_section')}</h3>
             <p class="mt-1 text-xs text-ink-dim">
-              {isOff ? 'Disabled (Lighting is Off)' : 'LED luminance output'}
+              {isOff ? i18n.t('lighting.brightness_disabled') : i18n.t('lighting.brightness_desc')}
             </p>
           </div>
           <span class="rounded-full border border-edge bg-canvas px-3 py-1 text-xs font-bold text-glorious">
@@ -371,7 +371,7 @@
           class="w-full"
         />
         <div class="mt-2 flex justify-between text-[10px] text-ink-faint">
-          <span>0% (Off)</span>
+          <span>0% ({i18n.t('lighting.effect.off')})</span>
           <span>100% (Max)</span>
         </div>
       </section>
@@ -380,9 +380,9 @@
       <section class="rounded-2xl border border-edge bg-card p-6">
         <div class="mb-4 flex items-center justify-between">
           <div>
-            <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">ANIMATION SPEED</h3>
+            <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">{i18n.t('lighting.speed_section')}</h3>
             <p class="mt-1 text-xs text-ink-dim">
-              {isOff ? 'Disabled (Lighting is Off)' : 'Cycle and transition frequency'}
+              {isOff ? i18n.t('lighting.brightness_disabled') : i18n.t('lighting.speed_desc')}
             </p>
           </div>
           <span class="rounded-full border border-edge bg-canvas px-3 py-1 text-xs font-bold text-glorious">
@@ -402,8 +402,8 @@
           class="w-full"
         />
         <div class="mt-2 flex justify-between text-[10px] text-ink-faint">
-          <span>0% (Slowest)</span>
-          <span>100% (Fastest)</span>
+          <span>0%</span>
+          <span>100%</span>
         </div>
       </section>
     </div>
@@ -441,8 +441,8 @@
     <!-- Sleep Timer Segmented Options -->
     <section class="rounded-2xl border border-edge bg-card p-6">
       <div class="mb-4">
-        <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">SLEEP TIMER</h3>
-        <p class="mt-1 text-xs text-ink-dim">Put mouse into wireless low-power sleep mode after inactivity.</p>
+        <h3 class="text-xs font-bold tracking-[0.18em] text-ink-faint">{i18n.t('lighting.sleep_section')}</h3>
+        <p class="mt-1 text-xs text-ink-dim">{i18n.t('lighting.sleep_desc')}</p>
       </div>
 
       <div class="flex flex-wrap gap-2.5">
@@ -455,7 +455,7 @@
               : 'border border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
             onclick={() => setSleep(opt.seconds)}
           >
-            {opt.label}
+            {opt.seconds === 'off' ? i18n.t('lighting.sleep_off') : opt.label}
           </button>
         {/each}
       </div>

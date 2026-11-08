@@ -2,7 +2,7 @@
 ; Produces a standalone, single-file installer for Windows users without any dependencies.
 
 #define MyAppName "Glorious Web Launcher"
-#define MyAppVersion "0.1.2"
+#define MyAppVersion "0.1.3"
 #define MyAppPublisher "m24ih"
 #define MyAppURL "https://gitlab.com/m24ih/glorious-web-launcher"
 #define MyAppExeName "glorious-service.exe"

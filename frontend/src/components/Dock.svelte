@@ -45,13 +45,32 @@
     selectedPin ? mappings.find((m) => m.pin === selectedPin) : null
   );
 
+  function getPinLabel(pin: PinId): string {
+    const key = `stage.${pin}`;
+    const translated = i18n.t(key);
+    return translated !== key ? translated : PIN_LABELS[pin];
+  }
+
   const currentLabel = $derived(
-    selectedPin ? PIN_LABELS[selectedPin] : null
+    selectedPin ? getPinLabel(selectedPin) : null
   );
+
+  function getActionLabel(act: { id: string; label: string }): string {
+    const key = `dock.action.${act.id}`;
+    const translated = i18n.t(key);
+    return translated !== key ? translated : act.label;
+  }
+
+  function getMappedActionName(actionStr: string): string {
+    const found = Object.values(DOCK_ACTIONS).flat().find((a) => a.label === actionStr || a.id === actionStr);
+    if (found) {
+      return getActionLabel(found);
+    }
+    return actionStr;
+  }
 
   // Load macros when macro category selected to allow direct selection
   let macroList = $derived(activeCategory === 'macro' ? loadMacros() : []);
-
 
   const defaultAction = $derived(
     selectedPin ? DEFAULT_PIN_ACTIONS.find((m) => m.pin === selectedPin) : null
@@ -59,65 +78,72 @@
 
   const isCustomized = $derived(
     Boolean(
-      currentMapping &&
-      defaultAction &&
-      (currentMapping.action !== defaultAction.action || currentMapping.category !== defaultAction.category)
+      selectedPin &&
+        currentMapping &&
+        defaultAction &&
+        currentMapping.action !== defaultAction.action
     )
   );
 
   function resetCurrentButton() {
-    if (!selectedPin || !defaultAction) return;
+    if (!selectedPin) return;
     if (onResetPin) {
       onResetPin(selectedPin);
     } else {
-      onAssign(defaultAction.category, defaultAction.action);
+      const def = DEFAULT_PIN_ACTIONS.find((m) => m.pin === selectedPin);
+      if (def) {
+        onAssign('mousekeys', def.action);
+      }
     }
   }
 
-  const isLocked = $derived(selectedPin === 'left' && leftClickLocked);
+  const isLocked = $derived(
+    leftClickLocked && selectedPin === 'left'
+  );
 
   function applyTurbo() {
-    const action = turboKey ? `gaming:turbo_${turboKey}` : 'gaming:turbo';
+    if (!selectedPin || isLocked) return;
+    const action = `turbo:${turboKey}:${turboCount}:${turboRate}`;
     onAssign('gaming', action);
   }
 
   function assignCombination() {
-    const mods: string[] = [];
-    if (comboMods.ctrl) mods.push('ctrl');
-    if (comboMods.shift) mods.push('shift');
-    if (comboMods.alt) mods.push('alt');
-    if (comboMods.win) mods.push('win');
-    const combo = mods.length ? `${mods.join('+')}+${comboTarget}` : comboTarget;
-    onAssign('combinations', `combo:${combo.toLowerCase()}`);
+    if (!selectedPin || isLocked) return;
+    const parts: string[] = [];
+    if (comboMods.ctrl) parts.push('Ctrl');
+    if (comboMods.shift) parts.push('Shift');
+    if (comboMods.alt) parts.push('Alt');
+    if (comboMods.win) parts.push('Win');
+    parts.push(comboTarget);
+    onAssign('combinations', parts.join('+'));
   }
 
-  const previewCombo = $derived(() => {
-    const mods: string[] = [];
-    if (comboMods.ctrl) mods.push('Ctrl');
-    if (comboMods.shift) mods.push('Shift');
-    if (comboMods.alt) mods.push('Alt');
-    if (comboMods.win) mods.push('Win / Cmd');
-    return mods.length ? `${mods.join(' + ')} + ${comboTarget}` : comboTarget;
-  });
+  function previewCombo(): string {
+    const parts: string[] = [];
+    if (comboMods.ctrl) parts.push('Ctrl');
+    if (comboMods.shift) parts.push('Shift');
+    if (comboMods.alt) parts.push('Alt');
+    if (comboMods.win) parts.push('Win');
+    parts.push(comboTarget);
+    return parts.join('+');
+  }
 
   function filteredShortcuts() {
-    const all = DOCK_ACTIONS['shortcuts'] ?? [];
+    const actions = DOCK_ACTIONS['shortcuts'] ?? [];
+    if (shortcutFilter === 'all') return actions;
     if (shortcutFilter === 'win') {
-      return all.filter((a) => /win|ctrl/i.test(a.label) && !/cmd/i.test(a.label));
+      return actions.filter((a) => !a.id.startsWith('sc:cmd'));
     }
-    if (shortcutFilter === 'mac') {
-      return all.filter((a) => /cmd/i.test(a.label) || (/ctrl/i.test(a.label) && !/win/i.test(a.label)));
-    }
-    return all;
+    return actions.filter((a) => a.id.startsWith('sc:cmd') || a.id.startsWith('sc:ctrl'));
   }
 </script>
 
-<div class="border-t border-edge bg-panel px-5 py-3">
-  <div class="flex w-full flex-col gap-2.5">
-    <!-- Header row: category bar & active button capsule -->
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <!-- Category bar with dark zinc + amber highlight -->
-      <div class="flex items-center gap-1 overflow-x-auto rounded border border-edge bg-card p-1">
+<div class="border-t border-edge bg-panel px-4 py-3">
+  <div class="mx-auto flex max-w-[1240px] flex-col gap-2.5">
+    <!-- Category tabs row + reset button -->
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <!-- Tabs -->
+      <div class="flex flex-wrap gap-1">
         {#each DOCK_CATEGORIES as cat (cat.id)}
           <button
             type="button"
@@ -139,10 +165,10 @@
             type="button"
             class="flex items-center gap-1.5 rounded border border-amber-500/40 bg-amber-950/30 px-3 py-1 text-[11px] font-bold text-amber-300 transition hover:border-amber-400 hover:bg-amber-900/50 hover:text-white"
             onclick={resetCurrentButton}
-            title="Reset {currentLabel} to its default function ({defaultAction?.action})"
+            title="{i18n.t('dock.reset_button')}: {currentLabel}"
           >
             <RotateCcw size={12} class="text-amber-400" />
-            <span>Reset Button</span>
+            <span>{i18n.t('dock.reset_button')}</span>
           </button>
         {/if}
 
@@ -150,11 +176,11 @@
         {#if selectedPin && currentLabel}
           <div class="flex items-center gap-2 rounded border border-[#6277ff]/60 bg-[#4657c9]/15 px-3 py-1 text-[11px] font-medium text-[#aeb8ff]">
             <span class="h-1.5 w-1.5 rounded-full bg-[#6277ff]"></span>
-            <span>Editing: <strong class="text-ink">{currentLabel}</strong> &rarr; <span class="font-bold">{currentMapping?.action ?? currentLabel}</span></span>
+            <span>{i18n.t('dock.editing', { label: currentLabel, action: getMappedActionName(currentMapping?.action ?? currentLabel) })}</span>
           </div>
         {:else}
           <div class="flex items-center gap-2 rounded border border-edge bg-card px-3 py-1 text-[11px] text-ink-faint">
-            <span>Select a button pin on the mouse above to rebind</span>
+            <span>{i18n.t('dock.select_prompt')}</span>
           </div>
         {/if}
       </div>
@@ -164,7 +190,7 @@
     {#if isLocked}
       <div role="status" class="rounded border border-amber-500/35 bg-amber-950/40 px-3 py-2 text-xs font-medium text-amber-300">
         <span aria-hidden="true">🔒</span>
-        <span class="ml-1.5">Left Click is locked. Disable Left Click Lock in Advanced to rebind it.</span>
+        <span class="ml-1.5">{i18n.t('dock.left_click_locked')}</span>
       </div>
     {/if}
 
@@ -228,25 +254,6 @@
               </div>
             </div>
           </div>
-
-          <!-- Test input -->
-          <div class="rounded border border-edge bg-canvas/60 p-3">
-            <label for="turbo-test" class="mb-1 block text-[11px] font-bold text-ink-dim">Test Keys — type to feel the repeat</label>
-            <input
-              id="turbo-test"
-              type="text"
-              value={testInput}
-              oninput={(e) => testInput = e.currentTarget.value}
-              placeholder="Type here..."
-              class="w-full rounded-lg border border-edge bg-card px-3 py-2 text-sm font-medium text-ink focus:border-glorious focus:outline-none"
-            />
-          </div>
-
-          {#if !caps?.hasGamingTurbo}
-            <div class="rounded-xl border border-amber-500/40 bg-amber-950/40 px-3 py-2 text-[11px] leading-snug text-amber-300">
-              Note: Model O Wireless MCU does not store rapid fire on-board; this is active only while software launcher runs.
-            </div>
-          {/if}
 
           <button
             type="button"
@@ -341,7 +348,7 @@
               class="flex items-center justify-center rounded border border-edge bg-canvas/60 px-2.5 py-2 text-center text-xs font-medium text-ink transition hover:border-[#6277ff] hover:bg-[#4657c9]/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
               disabled={!selectedPin || isLocked}
               onclick={() => onAssign('shortcuts', action.label)}
-              title={selectedPin ? `Assign ${action.label} to ${currentLabel}` : 'Select a pin first'}
+              title={selectedPin ? `Assign ${action.label} to ${currentLabel}` : i18n.t('dock.select_prompt')}
             >
               <span class="truncate">{action.label}</span>
             </button>
@@ -355,7 +362,7 @@
               class="flex items-center justify-center rounded border border-edge bg-canvas/60 px-2.5 py-2 text-center text-xs font-medium text-ink transition hover:border-[#6277ff] hover:bg-[#4657c9]/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
               disabled={!selectedPin || isLocked}
               onclick={() => onAssign('macro', `macro:m${macro.slot}`)}
-              title={selectedPin ? `Assign ${macro.name} to ${currentLabel}` : 'Select a pin first'}
+              title={selectedPin ? `Assign ${macro.name} to ${currentLabel}` : i18n.t('dock.select_prompt')}
             >
               <span class="truncate">{macro.name || `M${macro.slot}`}</span>
             </button>
@@ -364,14 +371,15 @@
       {:else}
         <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1.5 max-h-[135px] overflow-y-auto pr-1">
           {#each categoryActions as action (action.id)}
+            {@const localizedLabel = getActionLabel(action)}
             <button
               type="button"
               class="flex items-center justify-center rounded border border-edge bg-canvas/60 px-2.5 py-2 text-center text-xs font-medium text-ink transition hover:border-[#6277ff] hover:bg-[#4657c9]/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
               disabled={!selectedPin || isLocked}
               onclick={() => onAssign(activeCategory, action.label)}
-              title={selectedPin ? `Assign ${action.label} to ${currentLabel}` : 'Select a pin first'}
+              title={selectedPin ? `Assign ${localizedLabel} to ${currentLabel}` : i18n.t('dock.select_prompt')}
             >
-              <span class="truncate">{action.label}</span>
+              <span class="truncate">{localizedLabel}</span>
             </button>
           {/each}
         </div>
