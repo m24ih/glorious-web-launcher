@@ -2,7 +2,7 @@
 ; Produces a standalone, single-file installer for Windows users without any dependencies.
 
 #define MyAppName "Glorious Web Launcher"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "0.1.1"
 #define MyAppPublisher "m24ih"
 #define MyAppURL "https://gitlab.com/m24ih/glorious-web-launcher"
 #define MyAppExeName "glorious-service.exe"
@@ -41,9 +41,15 @@ SetupMutex=GloriousWebLauncherSetupMutex
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 
+[CustomMessages]
+english.AutostartGroup=Startup Options:
+english.AutostartDescription=Start Glorious Web Launcher automatically with Windows (System Tray)
+turkish.AutostartGroup=Başlangıç Seçenekleri:
+turkish.AutostartDescription=Glorious Web Launcher'ı Windows açılışında otomatik başlat (Sistem Tepsisi)
+
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "autostart"; Description: "Start Glorious Web Launcher automatically with Windows (System Tray)"; GroupDescription: "Startup Options:"; Flags: checkedonce
+Name: "autostart"; Description: "{cm:AutostartDescription}"; GroupDescription: "{cm:AutostartGroup}"; Flags: checkedonce
 
 [Files]
 Source: "..\..\target\release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
