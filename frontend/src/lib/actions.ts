@@ -995,14 +995,14 @@ export const KEY_TO_HID_CODE: Record<string, number> = {
   '1': 0x1e, '2': 0x1f, '3': 0x20, '4': 0x21, '5': 0x22,
   '6': 0x23, '7': 0x24, '8': 0x25, '9': 0x26, '0': 0x27,
   // Modifiers
-  ctrl: 0xe0, control: 0xe0, lctrl: 0xe0, 'left ctrl': 0xe0,
-  shift: 0xe1, lshift: 0xe1, 'left shift': 0xe1,
-  alt: 0xe2, lalt: 0xe2, 'left alt': 0xe2,
-  win: 0xe3, windows: 0xe3, meta: 0xe3, cmd: 0xe3, command: 0xe3, gui: 0xe3,
-  rctrl: 0xe4, 'right ctrl': 0xe4,
-  rshift: 0xe5, 'right shift': 0xe5,
-  ralt: 0xe6, 'right alt': 0xe6, altgr: 0xe6,
-  rwin: 0xe7, 'right win': 0xe7,
+  ctrl: 0xe0, control: 0xe0, lctrl: 0xe0, 'left ctrl': 0xe0, controlleft: 0xe0,
+  shift: 0xe1, lshift: 0xe1, 'left shift': 0xe1, shiftleft: 0xe1,
+  alt: 0xe2, lalt: 0xe2, 'left alt': 0xe2, altleft: 0xe2,
+  win: 0xe3, windows: 0xe3, meta: 0xe3, cmd: 0xe3, command: 0xe3, gui: 0xe3, metaleft: 0xe3, super: 0xe3,
+  rctrl: 0xe4, 'right ctrl': 0xe4, controlright: 0xe4,
+  rshift: 0xe5, 'right shift': 0xe5, shiftright: 0xe5,
+  ralt: 0xe6, 'right alt': 0xe6, altgr: 0xe6, altright: 0xe6, altgraph: 0xe6,
+  rwin: 0xe7, 'right win': 0xe7, metaright: 0xe7,
   // Standard keys
   enter: 0x28, return: 0x28,
   esc: 0x29, escape: 0x29,
@@ -1039,6 +1039,143 @@ export const KEY_TO_HID_CODE: Record<string, number> = {
   arrowdown: 0x51, down: 0x51, 'arrow down': 0x51, 'down arrow': 0x51,
   arrowup: 0x52, up: 0x52, 'arrow up': 0x52, 'up arrow': 0x52,
 };
+
+/**
+ * Modifier key bitmask mapping according to official Sinowealth / ModelOSeries firmware protocol:
+ * - Down opcode: 0x09
+ * - Up opcode:   0x0A
+ * - Left Ctrl:     0x01 ('Control', 'ControlLeft', 'ctrl', 'lctrl')
+ * - Left Shift:    0x02 ('Shift', 'ShiftLeft', 'shift', 'lshift')
+ * - Left Alt:      0x04 ('Alt', 'AltLeft', 'alt', 'lalt')
+ * - Left Win/Meta: 0x08 ('Meta', 'MetaLeft', 'win', 'lwin', 'super')
+ * - Right Ctrl:    0x10 ('ControlRight', 'rctrl')
+ * - Right Shift:   0x20 ('ShiftRight', 'rshift')
+ * - Right Alt:     0x40 ('AltRight', 'ralt', 'altgraph')
+ * - Right Win/Meta:0x80 ('MetaRight', 'rwin')
+ */
+export const KEY_TO_MODIFIER_MASK: Record<string, number> = {
+  // Left Ctrl: 0x01
+  control: 0x01,
+  controlleft: 0x01,
+  ctrl: 0x01,
+  lctrl: 0x01,
+  'left ctrl': 0x01,
+  leftctrl: 0x01,
+  'left control': 0x01,
+
+  // Left Shift: 0x02
+  shift: 0x02,
+  shiftleft: 0x02,
+  lshift: 0x02,
+  'left shift': 0x02,
+  leftshift: 0x02,
+  'left-shift': 0x02,
+
+  // Left Alt: 0x04
+  alt: 0x04,
+  altleft: 0x04,
+  lalt: 0x04,
+  'left alt': 0x04,
+  leftalt: 0x04,
+  'left-alt': 0x04,
+
+  // Left Win/Meta: 0x08
+  meta: 0x08,
+  metaleft: 0x08,
+  win: 0x08,
+  lwin: 0x08,
+  'left win': 0x08,
+  leftwin: 0x08,
+  super: 0x08,
+  lsuper: 0x08,
+  windows: 0x08,
+  'left windows': 0x08,
+  cmd: 0x08,
+  command: 0x08,
+  gui: 0x08,
+
+  // Right Ctrl: 0x10
+  controlright: 0x10,
+  rctrl: 0x10,
+  'right ctrl': 0x10,
+  rightctrl: 0x10,
+  'right control': 0x10,
+
+  // Right Shift: 0x20
+  shiftright: 0x20,
+  rshift: 0x20,
+  'right shift': 0x20,
+  rightshift: 0x20,
+  'right-shift': 0x20,
+
+  // Right Alt: 0x40
+  altright: 0x40,
+  ralt: 0x40,
+  altgraph: 0x40,
+  altgr: 0x40,
+  'right alt': 0x40,
+  rightalt: 0x40,
+  'right-alt': 0x40,
+
+  // Right Win/Meta: 0x80
+  metaright: 0x80,
+  rwin: 0x80,
+  'right win': 0x80,
+  rightwin: 0x80,
+  rsuper: 0x80,
+  'right super': 0x80,
+  'right windows': 0x80,
+};
+
+export function keyToModifierMask(key?: string, keyCode?: number, code?: string): number {
+  const normKey = key?.trim().toLowerCase() ?? '';
+  const normCode = code?.trim().toLowerCase() ?? '';
+
+  // 1. If code indicates a specific modifier (e.g. 'ControlRight', 'ShiftRight'), prioritize it
+  if (normCode && KEY_TO_MODIFIER_MASK[normCode] !== undefined) {
+    if (!normKey || KEY_TO_MODIFIER_MASK[normKey] !== undefined) {
+      return KEY_TO_MODIFIER_MASK[normCode];
+    }
+  }
+
+  // 2. Check key string directly
+  if (normKey && KEY_TO_MODIFIER_MASK[normKey] !== undefined) {
+    return KEY_TO_MODIFIER_MASK[normKey];
+  }
+
+  // 3. Fallback to keyCode
+  if (keyCode !== undefined && (!normKey || KEY_TO_MODIFIER_MASK[normKey] !== undefined)) {
+    switch (keyCode) {
+      case 17: // DOM Control
+      case 0xe0:
+        return 0x01;
+      case 16: // DOM Shift
+      case 0xe1:
+        return 0x02;
+      case 18: // DOM Alt
+      case 0xe2:
+        return 0x04;
+      case 91: // DOM Left Win/Meta
+      case 0xe3:
+        return 0x08;
+      case 0xe4:
+        return 0x10;
+      case 0xe5:
+        return 0x20;
+      case 0xe6:
+        return 0x40;
+      case 92: // DOM Right Win/Meta
+      case 0xe7:
+        return 0x80;
+    }
+  }
+
+  return 0;
+}
+
+export function isModifierKey(key?: string, keyCode?: number, code?: string): boolean {
+  return keyToModifierMask(key, keyCode, code) > 0;
+}
 
 export function keyToHidCode(key: string, keyCode?: number): number {
   const norm = key.trim().toLowerCase();
@@ -1118,6 +1255,40 @@ export function resolveMouseHid(mouseButton?: number, key?: string): number {
  * - Text: convert each char to down/up pair [0x02, hidCode, 0x03, hidCode]
  * - Mouse Click / Down: [0x01, mouseHid] (where mouseHid: 1=Left, 2=Right, 4=Middle, 8=Back, 16=Forward)
  */
+
+/**
+ * Resolves modifier keys to Sinowealth MDFKey bitmask:
+ * - Left Ctrl: 0x01
+ * - Left Shift: 0x02
+ * - Left Alt: 0x04
+ * - Left Win/Meta: 0x08
+ * - Right Ctrl: 0x10
+ * - Right Shift: 0x20
+ * - Right Alt: 0x40
+ * - Right Win/Meta: 0x80
+ */
+export function resolveModifierMdfKey(key?: string, keyCode?: number): number | null {
+  if (key) {
+    const k = key.trim().toLowerCase();
+    if (k === 'control' || k === 'controlleft' || k === 'ctrl' || k === 'lctrl') return 0x01;
+    if (k === 'shift' || k === 'shiftleft' || k === 'lshift') return 0x02;
+    if (k === 'alt' || k === 'altleft' || k === 'lalt') return 0x04;
+    if (k === 'meta' || k === 'metaleft' || k === 'win' || k === 'lwin' || k === 'super') return 0x08;
+    if (k === 'controlright' || k === 'rctrl') return 0x10;
+    if (k === 'shiftright' || k === 'rshift') return 0x20;
+    if (k === 'altright' || k === 'ralt' || k === 'altgraph') return 0x40;
+    if (k === 'metaright' || k === 'rwin') return 0x80;
+  }
+  if (keyCode) {
+    if (keyCode === 17) return 0x01; // Ctrl
+    if (keyCode === 16) return 0x02; // Shift
+    if (keyCode === 18) return 0x04; // Alt
+    if (keyCode === 91) return 0x08; // Left Win
+    if (keyCode === 92) return 0x80; // Right Win
+  }
+  return null;
+}
+
 export function macroDefinitionToRawBytes(macro: MacroDefinition): number[] {
   const bytes: number[] = [];
 
@@ -1145,16 +1316,26 @@ export function macroDefinitionToRawBytes(macro: MacroDefinition): number[] {
 
     switch (event.type) {
       case 'down': {
-        const code = keyToHidCode(event.key ?? '', event.keyCode);
-        if (code > 0) {
-          bytes.push(0x02, code);
+        const mdf = resolveModifierMdfKey(event.key, event.keyCode);
+        if (mdf !== null) {
+          bytes.push(0x09, mdf);
+        } else {
+          const code = keyToHidCode(event.key ?? '', event.keyCode);
+          if (code > 0) {
+            bytes.push(0x02, code);
+          }
         }
         break;
       }
       case 'up': {
-        const code = keyToHidCode(event.key ?? '', event.keyCode);
-        if (code > 0) {
-          bytes.push(0x03, code);
+        const mdf = resolveModifierMdfKey(event.key, event.keyCode);
+        if (mdf !== null) {
+          bytes.push(0x0A, mdf);
+        } else {
+          const code = keyToHidCode(event.key ?? '', event.keyCode);
+          if (code > 0) {
+            bytes.push(0x03, code);
+          }
         }
         break;
       }
