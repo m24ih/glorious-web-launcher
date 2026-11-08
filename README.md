@@ -36,8 +36,23 @@ session D-Bus, and `notify-send` are needed for desktop integration.
 
 ### Windows
 
-For a Windows installation, ensure Rust, Node.js and Visual Studio C++ Build Tools (MSVC) are installed. Then run PowerShell:
+#### For End Users (Recommended)
 
+Windows users do **not** need Rust, Node.js, or any terminal tools installed:
+1. Download **`GloriousWebLauncher-Setup.exe`** from the [Releases](https://gitlab.com/m24ih/glorious-web-launcher/releases) page.
+2. Run the wizard setup ("Next ➔ Next ➔ Install").
+3. Glorious Web Launcher will automatically appear in your System Tray and Start Menu. You can uninstall it anytime from Windows Settings (Installed Apps).
+
+#### Building from Source / Developer Setup
+
+Ensure Rust, Node.js and Visual Studio C++ Build Tools (MSVC) are installed.
+
+To build the standalone GUI installer package:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-installer.ps1
+```
+
+Or run the quick local installation script:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
