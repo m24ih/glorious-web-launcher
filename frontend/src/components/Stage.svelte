@@ -161,8 +161,8 @@
               {spec.label}
             </span>
             {#if mapped && mapped.action !== PIN_LABELS[spec.id]}
-              <span class="mt-0.5 rounded-full px-1.5 text-[9px] leading-tight" style="background: {stageColor(i)}22; color: {stageColor(i)}">
-                {mapped.action}
+              <span class="mt-0.5 max-w-[90px] truncate rounded-full px-1.5 text-[9px] leading-tight" style="background: {stageColor(i)}22; color: {stageColor(i)}">
+                {mapped.action.startsWith('macro:') ? mapped.action.replace('macro:', '') : mapped.action}
               </span>
             {/if}
           </button>

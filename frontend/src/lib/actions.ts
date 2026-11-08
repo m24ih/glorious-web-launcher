@@ -674,19 +674,25 @@ export function pinActionToButtonAction(
 ): ButtonAction {
   const norm = actionStr.trim();
 
-  // Macro bindings — must run before generic letter matching so "Macro 1"
-  // or "macro:m1" / "macro:M1" resolve to the macro action type.
-  if (category === 'macro' || norm.startsWith('macro:')) {
-    const mMatch = norm.match(/^macro:m(\d+)$/i);
-    const slot = mMatch ? parseInt(mMatch[1], 10) : 0;
+  // Macro bindings — must run before generic letter matching so "Macro 1",
+  // "macro:m1", "macro:1", or user-defined macro names resolve to the macro action type.
+  if (category === 'macro' || norm.startsWith('macro:') || /^Macro \d+$/i.test(norm)) {
+    const macroList = (macros && macros.length > 0) ? macros : loadMacros();
+    let slot = 0;
+    const mMatch = norm.match(/^macro:m?(\d+)$/i) || norm.match(/^Macro (\d+)$/i);
+    if (mMatch) {
+      slot = parseInt(mMatch[1], 10);
+    } else {
+      const byName = macroList.find((m) => m.name.toLowerCase() === norm.toLowerCase());
+      if (byName) slot = byName.slot;
+    }
+
     let repeat_mode = 0;
     let loop_count = 1;
-    if (macros) {
-      const macro = macros.find((x) => x.slot === slot);
-      if (macro) {
-        repeat_mode = macro.repeatMode === 'toggle' ? 1 : macro.repeatMode === 'while_holding' ? 2 : 0;
-        loop_count = macro.loopCount || 1;
-      }
+    const macro = macroList.find((x) => x.slot === slot);
+    if (macro) {
+      repeat_mode = macro.repeatMode === 'toggle' ? 1 : macro.repeatMode === 'while_holding' ? 2 : 0;
+      loop_count = macro.loopCount || 1;
     }
     return { type: 'macro', macro_id: slot, repeat_mode, loop_count };
   }
@@ -824,7 +830,10 @@ export function buttonActionToPinAction(action: ButtonAction, pin: PinId): PinAc
       return { pin, category: 'dpi', action: label };
     }
     case 'macro': {
-      return { pin, category: 'macro', action: `Macro ${action.macro_id}` };
+      const macros = loadMacros();
+      const found = macros.find((m) => m.slot === action.macro_id);
+      const label = found?.name || `Macro ${action.macro_id}`;
+      return { pin, category: 'macro', action: label };
     }
     case 'media': {
       const entry = Object.entries(MULTIMEDIA_KEY_CODES).find(
