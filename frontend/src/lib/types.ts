@@ -258,7 +258,17 @@ export type ViewId =
   | 'advanced'
   | 'angle'
   | 'macro'
-  | 'firmware';
+  | 'tray'
+  | 'firmware'
+  | 'tray';
+
+export interface TraySettings {
+  show_dpi: boolean;
+  show_profiles: boolean;
+  show_lighting: boolean;
+  show_polling: boolean;
+  notifications: boolean;
+}
 
 export type TabId =
   | 'customize'
@@ -267,7 +277,8 @@ export type TabId =
   | 'advanced'
   | 'angle'
   | 'macro'
-  | 'firmware';
+  | 'firmware'
+  | 'tray';
 
 export type ActionCategory =
   | 'mousekeys'

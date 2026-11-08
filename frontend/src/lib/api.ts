@@ -90,3 +90,13 @@ export function connectWs(
   });
   return () => socket.close();
 }
+
+export function fetchTraySettings() {
+  return request<import('./types').TraySettings>('/api/tray-settings');
+}
+
+export function saveTraySettings(settings: import('./types').TraySettings) {
+  return request<import('./types').TraySettings>('/api/tray-settings', {
+    method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify(settings),
+  });
+}

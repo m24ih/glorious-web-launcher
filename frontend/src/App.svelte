@@ -9,6 +9,7 @@
   import AngleView from './components/AngleView.svelte';
   import FirmwareView from './components/FirmwareView.svelte';
   import MacroView from './components/MacroView.svelte';
+  import TraySettingsView from './components/TraySettingsView.svelte';
   import type {
     DeviceView,
     PinAction,
@@ -481,7 +482,7 @@
           <span class="text-xs text-ink-dim capitalize">· {activeTab}</span>
         </div>
 
-        {#if activeTab !== 'firmware'}
+        {#if activeTab !== 'firmware' && activeTab !== 'tray'}
           <div class="flex items-center gap-2">
             <button
               type="button"
@@ -503,7 +504,9 @@
       </div>
 
       <!-- Tab Content Area -->
-      {#if activeTab === 'pointer'}
+      {#if activeTab === 'tray'}
+        <TraySettingsView />
+      {:else if activeTab === 'pointer'}
         <PointerView {device} {draft} {caps} onChange={onDraftChange} />
       {:else if activeTab === 'lighting'}
         <LightingView {draft} onChange={onDraftChange} onLivePreview={onLightingLivePreview} />

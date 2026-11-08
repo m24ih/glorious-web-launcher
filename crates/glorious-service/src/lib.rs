@@ -14,12 +14,13 @@
 //! All HID calls are blocking, so handlers run them on `spawn_blocking`.
 
 pub mod api;
-pub mod devices;
 #[cfg(target_os = "linux")]
 pub mod desktop;
+pub mod devices;
 pub mod hid;
 pub mod manager;
 pub mod profiles;
+pub mod tray_settings;
 pub mod types;
 pub mod ws;
 

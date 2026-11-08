@@ -25,6 +25,7 @@ pub struct AppState {
     pub manager: SharedManager,
     pub tx: broadcast::Sender<WsEvent>,
     pub started_at: Instant,
+    pub tray_settings: Arc<crate::tray_settings::TraySettingsStore>,
 }
 
 impl AppState {
@@ -34,6 +35,7 @@ impl AppState {
             manager,
             tx,
             started_at: Instant::now(),
+            tray_settings: Arc::new(crate::tray_settings::TraySettingsStore::load_default()),
         }
     }
 }
@@ -69,11 +71,7 @@ async fn static_handler(uri: Uri) -> Response {
     }
 
     if path == "api" || path.starts_with("api/") {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(json!({ "error": "not found" })),
-        )
-            .into_response();
+        return (StatusCode::NOT_FOUND, Json(json!({ "error": "not found" }))).into_response();
     }
 
     // SPA fallback: return index.html for non-API client routes
@@ -98,6 +96,10 @@ async fn static_handler(uri: Uri) -> Response {
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(health))
+        .route(
+            "/api/tray-settings",
+            get(get_tray_settings).put(put_tray_settings),
+        )
         .route("/api/devices", get(list_devices))
         .route("/api/device/{slug}", get(device_details))
         .route("/api/device/{slug}/apply", post(apply_device))
@@ -105,6 +107,28 @@ pub fn router(state: AppState) -> Router {
         .fallback(static_handler)
         .layer(CorsLayer::permissive())
         .with_state(state)
+}
+
+async fn get_tray_settings(
+    State(state): State<AppState>,
+) -> Json<crate::tray_settings::TraySettings> {
+    Json(state.tray_settings.get())
+}
+
+async fn put_tray_settings(
+    State(state): State<AppState>,
+    Json(settings): Json<crate::tray_settings::TraySettings>,
+) -> Result<Json<crate::tray_settings::TraySettings>, ApiError> {
+    let store = state.tray_settings.clone();
+    let saved = settings.clone();
+    tokio::task::spawn_blocking(move || store.set(saved))
+        .await
+        .map_err(ApiError::join)?
+        .map_err(|error| ApiError {
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+            message: format!("Could not save tray settings: {error}"),
+        })?;
+    Ok(Json(settings))
 }
 
 async fn health(State(state): State<AppState>) -> Json<Value> {

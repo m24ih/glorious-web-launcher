@@ -61,6 +61,14 @@ without them. `--no-desktop` disables both tray and notifications for headless u
 An asleep or out-of-range wireless mouse may still have a connected receiver;
 the service cannot distinguish those states from receiver telemetry alone.
 
+The System Tray tab controls shortcut visibility and notifications. Preferences
+are saved in `tray.json` beside `profiles.json` under
+`$XDG_CONFIG_HOME/glorious-launcher/` (or `~/.config/glorious-launcher/`).
+The menu offers saved DPI stages, profiles, lighting effects and brightness,
+and standard polling rates for supported connected devices. DPI labels are
+saved settings, not necessarily values read back from hardware. Turning off
+lighting preserves the last non-off setting in `tray.json` for restoration.
+
 ### Permissions
 
 Install `packaging/99-glorious.rules` (see `packaging/README.md`) so the active

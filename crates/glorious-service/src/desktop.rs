@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use ksni::menu::{MenuItem, StandardItem};
+use ksni::menu::{MenuItem, StandardItem, SubMenu};
 use ksni::TrayMethods;
 use ksni::{ToolTip, Tray};
 use tokio::sync::Notify;
 
 use crate::api::AppState;
-use crate::types::DeviceView;
+use crate::types::{DeviceStatusView, DeviceView, EffectSpec, RgbPatch, SettingsPatch};
 use crate::ws::WsEvent;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -82,6 +82,8 @@ struct DesktopTray {
     url: String,
     devices: Vec<DeviceView>,
     shutdown: Arc<Notify>,
+    app: AppState,
+    settings: crate::tray_settings::TraySettings,
 }
 
 impl Tray for DesktopTray {
@@ -117,14 +119,194 @@ impl Tray for DesktopTray {
             .into(),
             MenuItem::Separator,
         ];
-        items.extend(status_lines(&self.devices).into_iter().map(|label| {
-            StandardItem {
-                label,
-                enabled: false,
-                ..Default::default()
+        if self.devices.is_empty() {
+            items.push(
+                StandardItem {
+                    label: "No device connected".into(),
+                    enabled: false,
+                    ..Default::default()
+                }
+                .into(),
+            );
+        }
+        for device in &self.devices {
+            let ready = device.connected
+                && device.supported
+                && matches!(device.status, DeviceStatusView::Connected);
+            let mut actions = Vec::new();
+            if let Some(settings) = &device.settings {
+                if self.settings.show_dpi {
+                    let entries = settings
+                        .dpi_stages
+                        .iter()
+                        .enumerate()
+                        .map(|(i, dpi)| {
+                            action_item(
+                                device,
+                                format!(
+                                    "{}{} DPI",
+                                    if settings.active_dpi_stage as usize == i + 1 {
+                                        "✓ "
+                                    } else {
+                                        ""
+                                    },
+                                    dpi
+                                ),
+                                Action::Dpi((i + 1) as u8),
+                            )
+                        })
+                        .collect();
+                    actions.push(
+                        SubMenu {
+                            label: "DPI (saved stages)".into(),
+                            submenu: entries,
+                            enabled: !settings.dpi_stages.is_empty(),
+                            ..Default::default()
+                        }
+                        .into(),
+                    );
+                }
+                if self.settings.show_profiles {
+                    let entries = (1..=3)
+                        .map(|profile| {
+                            action_item(
+                                device,
+                                format!(
+                                    "{}Profile {profile}",
+                                    if settings.active_profile == profile {
+                                        "✓ "
+                                    } else {
+                                        ""
+                                    }
+                                ),
+                                Action::Profile(profile),
+                            )
+                        })
+                        .collect();
+                    actions.push(
+                        SubMenu {
+                            label: "Profile".into(),
+                            submenu: entries,
+                            ..Default::default()
+                        }
+                        .into(),
+                    );
+                }
+                if self.settings.show_lighting {
+                    if let Some(light) = &settings.lighting {
+                        let mut entries: Vec<MenuItem<Self>> = Vec::new();
+                        entries.push(action_item(
+                            device,
+                            if light.effect == 0 {
+                                "Turn on".into()
+                            } else {
+                                "Turn off".into()
+                            },
+                            Action::ToggleLighting,
+                        ));
+                        let effects = [
+                            "Off",
+                            "Glorious",
+                            "Seamless Breathing",
+                            "Breathing",
+                            "Static",
+                            "Single Breathing",
+                            "Tail",
+                            "Rave",
+                            "Wave",
+                        ];
+                        let effects = effects
+                            .iter()
+                            .enumerate()
+                            .map(|(id, name)| {
+                                action_item(
+                                    device,
+                                    format!(
+                                        "{}{name}",
+                                        if light.effect == id as u8 { "✓ " } else { "" }
+                                    ),
+                                    Action::Effect(id as u8),
+                                )
+                            })
+                            .collect();
+                        entries.push(
+                            SubMenu {
+                                label: "Effect".into(),
+                                submenu: effects,
+                                ..Default::default()
+                            }
+                            .into(),
+                        );
+                        let brightness = [0, 25, 50, 75, 100]
+                            .iter()
+                            .map(|&n| {
+                                action_item(
+                                    device,
+                                    format!(
+                                        "{}{n}%",
+                                        if light.brightness == n { "✓ " } else { "" }
+                                    ),
+                                    Action::Brightness(n),
+                                )
+                            })
+                            .collect();
+                        entries.push(
+                            SubMenu {
+                                label: "Brightness".into(),
+                                submenu: brightness,
+                                ..Default::default()
+                            }
+                            .into(),
+                        );
+                        actions.push(
+                            SubMenu {
+                                label: "Lighting".into(),
+                                submenu: entries,
+                                ..Default::default()
+                            }
+                            .into(),
+                        );
+                    }
+                }
+                if self.settings.show_polling {
+                    let entries = [125, 250, 500, 1000]
+                        .iter()
+                        .map(|&rate| {
+                            action_item(
+                                device,
+                                format!(
+                                    "{}{rate} Hz",
+                                    if settings.polling_rate == rate {
+                                        "✓ "
+                                    } else {
+                                        ""
+                                    }
+                                ),
+                                Action::Polling(rate),
+                            )
+                        })
+                        .collect();
+                    actions.push(
+                        SubMenu {
+                            label: "Polling rate".into(),
+                            submenu: entries,
+                            ..Default::default()
+                        }
+                        .into(),
+                    );
+                }
             }
-            .into()
-        }));
+            let status = status_lines(std::slice::from_ref(device)).join("");
+            items.push(
+                SubMenu {
+                    label: status,
+                    enabled: ready && !actions.is_empty(),
+                    submenu: actions,
+                    ..Default::default()
+                }
+                .into(),
+            );
+        }
         items.push(MenuItem::Separator);
         items.push(
             StandardItem {
@@ -136,6 +318,78 @@ impl Tray for DesktopTray {
         );
         items
     }
+}
+
+#[derive(Clone, Copy)]
+enum Action {
+    Dpi(u8),
+    Profile(u8),
+    Polling(u32),
+    ToggleLighting,
+    Effect(u8),
+    Brightness(u8),
+}
+
+fn action_item(device: &DeviceView, label: String, action: Action) -> MenuItem<DesktopTray> {
+    let slug = device.slug.clone();
+    StandardItem { label, activate: Box::new(move |tray: &mut DesktopTray| {
+        let Some(device) = tray.devices.iter().find(|d| d.slug == slug).cloned() else { return; };
+        let app = tray.app.clone();
+        tokio::spawn(async move {
+            let name = device.name.clone();
+            let result = tokio::task::spawn_blocking(move || {
+                let settings = device.settings.ok_or_else(|| "Device settings unavailable".to_string())?;
+                let mut patch = SettingsPatch::default();
+                match action {
+                    Action::Dpi(stage) => patch.active_dpi_stage = Some(stage),
+                    Action::Profile(profile) => patch.profile = Some(profile),
+                    Action::Polling(rate) => patch.polling_rate = Some(rate),
+                    Action::ToggleLighting | Action::Effect(_) | Action::Brightness(_) => {
+                        let mut light = settings.lighting.ok_or_else(|| "Lighting settings unavailable".to_string())?;
+                        let key = format!("{}:{}", device.slug, settings.active_profile);
+                        let effect = match action {
+                            Action::ToggleLighting if light.effect != 0 => 0,
+                            Action::ToggleLighting => app.tray_settings.get().last_lighting.get(&key).map(|saved| saved.effect).ok_or_else(|| "No previous lighting effect is saved; select an effect first".to_string())?,
+                            Action::Effect(effect) => effect,
+                            _ => light.effect,
+                        };
+                        if effect == 0 && light.effect != 0 {
+                            app.tray_settings.remember_lighting(key.clone(), light.clone()).map_err(|error| format!("Could not save previous lighting: {error}"))?;
+                        } else if matches!(action, Action::ToggleLighting) && light.effect == 0 {
+                            if let Some(saved) = app.tray_settings.get().last_lighting.get(&key) { light = saved.clone(); }
+                        }
+                        if let Action::Brightness(brightness) = action { light.brightness = brightness; }
+                        patch.rgb = Some(RgbPatch { effect: EffectSpec::Id(effect), effect_name: None, brightness: light.brightness, wireless_brightness: None, rate: light.rate, color: light.color });
+                    }
+                }
+                let result = app.manager.apply(&device.slug, &patch).map_err(|e| e.to_string())?;
+                let _ = app.tx.send(WsEvent::Applied { ts: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(), slug: result.slug.clone(), applied: result.applied.clone(), device: Box::new(result.device) });
+                Ok::<(), String>(())
+            }).await;
+            match result {
+                Ok(Ok(())) => {},
+                Ok(Err(error)) => notify_error(&name, &error),
+                Err(error) => notify_error(&name, &error.to_string()),
+            }
+        });
+    }), ..Default::default() }.into()
+}
+
+fn notify_error(name: &str, error: &str) {
+    tracing::warn!(device = name, %error, "tray action failed");
+    let name = name.to_string();
+    let error = error.to_string();
+    tokio::spawn(async move {
+        let _ = tokio::process::Command::new("notify-send")
+            .args([
+                "--app-name=Glorious Web Launcher",
+                "--urgency=normal",
+                &name,
+                &error,
+            ])
+            .status()
+            .await;
+    });
 }
 
 fn status_lines(devices: &[DeviceView]) -> Vec<String> {
@@ -205,7 +459,11 @@ pub fn spawn(state: &AppState, url: String, shutdown: Arc<Notify>) {
         url,
         devices: Vec::new(),
         shutdown,
+        app: state.clone(),
+        settings: state.tray_settings.get(),
     };
+    let settings_store = state.tray_settings.clone();
+    let mut settings_rx = settings_store.subscribe();
     tokio::spawn(async move {
         let handle = match tray.assume_sni_available(true).spawn().await {
             Ok(handle) => Some(handle),
@@ -216,7 +474,16 @@ pub fn spawn(state: &AppState, url: String, shutdown: Arc<Notify>) {
         };
         let mut previous: HashMap<String, (String, DeviceState)> = HashMap::new();
         loop {
-            match rx.recv().await {
+            let event = tokio::select! {
+                event = rx.recv() => event,
+                changed = settings_rx.changed() => {
+                    if changed.is_err() { break; }
+                    let settings = settings_rx.borrow_and_update().clone();
+                    if let Some(handle) = &handle { handle.update(|tray| tray.settings = settings).await; }
+                    continue;
+                }
+            };
+            match event {
                 Ok(WsEvent::Telemetry { devices, .. }) => {
                     let mut seen = std::collections::HashSet::new();
                     for device in &devices {
@@ -230,18 +497,35 @@ pub fn spawn(state: &AppState, url: String, shutdown: Arc<Notify>) {
                             .filter(|b| b.status == "ok")
                             .map(|b| (b.percentage, b.charging));
                         for notice in state.update(device.connected, battery) {
-                            notify(&device.name, notice);
+                            if settings_store.get().notifications {
+                                notify(&device.name, notice);
+                            }
                         }
                     }
                     for (slug, (name, state)) in &mut previous {
                         if !seen.contains(slug) {
                             for notice in state.update(false, None) {
-                                notify(name, notice);
+                                if settings_store.get().notifications {
+                                    notify(name, notice);
+                                }
                             }
                         }
                     }
                     if let Some(handle) = &handle {
                         handle.update(|tray| tray.devices = devices).await;
+                    }
+                }
+                Ok(WsEvent::Applied { device, .. }) => {
+                    if let Some(handle) = &handle {
+                        handle
+                            .update(|tray| {
+                                if let Some(existing) =
+                                    tray.devices.iter_mut().find(|d| d.slug == device.slug)
+                                {
+                                    *existing = *device;
+                                }
+                            })
+                            .await;
                     }
                 }
                 Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
@@ -254,6 +538,70 @@ pub fn spawn(state: &AppState, url: String, shutdown: Arc<Notify>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn menu_shows_configured_shortcuts_only_for_supported_connected_devices() {
+        let (db, _) = crate::devices::DeviceDatabase::load_default().unwrap();
+        let app = AppState::new(::std::sync::Arc::new(crate::manager::DeviceManager::new(
+            db,
+            std::time::Duration::from_millis(1),
+        )));
+        let device = DeviceView {
+            slug: "test".into(),
+            name: "Test mouse".into(),
+            id: "1".into(),
+            router_id: "test".into(),
+            protocol: "sinowealth".into(),
+            supported: true,
+            connected: true,
+            status: DeviceStatusView::Connected,
+            connection: None,
+            image: None,
+            battery: None,
+            firmware: None,
+            settings: Some(crate::types::SettingsView {
+                dpi_stages: vec![800, 1600],
+                lighting: Some(crate::types::LightingView {
+                    effect: 4,
+                    effect_name: "static".into(),
+                    brightness: 50,
+                    rate: 50,
+                    color: [1, 2, 3],
+                }),
+                ..Default::default()
+            }),
+            profiles: None,
+            error: None,
+            last_seen: None,
+        };
+        let mut tray = DesktopTray {
+            url: "http://localhost".into(),
+            devices: vec![device],
+            shutdown: Arc::new(Notify::new()),
+            app,
+            settings: Default::default(),
+        };
+        tray.settings.show_polling = false;
+        let menu = tray.menu();
+        let MenuItem::SubMenu(device_menu) = &menu[2] else {
+            panic!("missing device menu")
+        };
+        let labels: Vec<_> = device_menu
+            .submenu
+            .iter()
+            .filter_map(|item| match item {
+                MenuItem::SubMenu(menu) => Some(menu.label.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(labels, vec!["DPI (saved stages)", "Profile", "Lighting"]);
+        tray.devices[0].supported = false;
+        let menu = tray.menu();
+        let MenuItem::SubMenu(device_menu) = &menu[2] else {
+            panic!("missing device menu")
+        };
+        assert!(!device_menu.enabled);
+    }
 
     #[test]
     fn battery_alerts_once_per_threshold_and_rearms_after_recharge() {
