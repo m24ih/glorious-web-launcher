@@ -2,6 +2,7 @@
   import { RefreshCw, Send } from 'lucide-svelte';
   import { PIN_SPECS, DPI_COLORS, PIN_LABELS } from '../lib/actions';
   import type { DeviceView, PinAction, PinId } from '../lib/types';
+  import { i18n } from '../lib/i18n.svelte';
 
   interface Props {
     device: DeviceView | null;
@@ -44,6 +45,12 @@
   function stageColor(index: number): string {
     return DPI_COLORS[index % DPI_COLORS.length];
   }
+
+  function getPinName(pinId: PinId): string {
+    const key = `stage.${pinId}`;
+    const localized = i18n.t(key);
+    return localized !== key ? localized : PIN_LABELS[pinId];
+  }
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col gap-3">
@@ -51,7 +58,7 @@
   <div class="flex items-center gap-3">
     <div class="min-w-0">
       <h1 class="truncate text-base font-semibold text-ink" translate="no">
-        {device?.name ?? 'No device'}
+        {device?.name ?? i18n.t('status.no_device')}
       </h1>
     </div>
 
@@ -69,7 +76,7 @@
 
     {#if device?.connected}
       <div class="rounded border border-edge bg-card px-2.5 py-1 text-[11px] text-ink-dim">
-        {device.connection?.type ?? 'Connected'}
+        {device.connection?.type ?? i18n.t('status.connected')}
       </div>
     {/if}
 
@@ -80,7 +87,7 @@
         onclick={onReset}
       >
         <RefreshCw size={14} />
-        Reset
+        {i18n.t('action.reset')}
       </button>
       <button
         type="button"
@@ -89,7 +96,7 @@
         onclick={onApply}
       >
         <Send size={14} />
-        {applying ? 'Applying…' : 'Apply to Mouse'}
+        {applying ? i18n.t('action.applying') : i18n.t('action.apply')}
       </button>
     </div>
   </div>
@@ -153,12 +160,12 @@
               ? `left: ${spec.pillX}%; top: ${spec.pillY}%; transform: translate(-50%, -50%)`
               : `left: ${spec.pillX}%; top: ${spec.pillY}%; transform: translate(-50%, -50%)`}
             onclick={() => onSelect(spec.id)}
-            title="Select to remap {PIN_LABELS[spec.id]}"
+            title="Select to remap {getPinName(spec.id)}"
           >
             <span
               class="text-[10px] font-semibold leading-tight {active ? 'text-white' : 'text-ink'}"
             >
-              {spec.label}
+              {getPinName(spec.id)}
             </span>
             {#if mapped && mapped.action !== PIN_LABELS[spec.id]}
               <span class="mt-0.5 max-w-[90px] truncate rounded-full px-1.5 text-[9px] leading-tight" style="background: {stageColor(i)}22; color: {stageColor(i)}">

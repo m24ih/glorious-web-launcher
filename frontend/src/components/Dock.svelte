@@ -2,6 +2,7 @@
   import type { DeviceCapabilities, PinId, ActionCategory, PinAction } from '../lib/types';
   import { DOCK_CATEGORIES, DOCK_ACTIONS, PIN_LABELS, DEFAULT_PIN_ACTIONS, loadMacros } from '../lib/actions';
   import { RotateCcw } from 'lucide-svelte';
+  import { i18n } from '../lib/i18n.svelte';
 
   interface Props {
     selectedPin: PinId | null;
@@ -126,7 +127,7 @@
             onclick={() => (activeCategory = cat.id)}
             aria-pressed={activeCategory === cat.id}
           >
-            {cat.label}
+            {i18n.t(`dock.category.${cat.id}`)}
           </button>
         {/each}
       </div>

@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-svelte';
+  import { Plus, Trash2 } from 'lucide-svelte';
   import type { SettingsDraft } from '../lib/types';
   import type { DeviceCapabilities, DeviceView } from '../lib/types';
   import { DPI_COLORS, clamp } from '../lib/actions';
+  import { i18n } from '../lib/i18n.svelte';
 
   interface Props {
     draft: SettingsDraft;
@@ -103,24 +104,6 @@
     onChange((prev) => ({ ...prev, xy_split: val }));
   }
 
-  function setDpiX(index: number, val: number) {
-    const clamped = clamp(Math.round(val / 100) * 100, minDpi, maxDpi);
-    onChange((prev) => {
-      const nextStages = [...prev.dpi_stages];
-      nextStages[index] = { ...nextStages[index], x: clamped };
-      return { ...prev, dpi_stages: nextStages };
-    });
-  }
-
-  function setDpiY(index: number, val: number) {
-    const clamped = clamp(Math.round(val / 100) * 100, minDpi, maxDpi);
-    onChange((prev) => {
-      const nextStages = [...prev.dpi_stages];
-      nextStages[index] = { ...nextStages[index], y: clamped };
-      return { ...prev, dpi_stages: nextStages };
-    });
-  }
-
   function setCompetitiveMode(val: boolean) {
     onChange((prev) => ({ ...prev, competitive_mode: val }));
   }
@@ -131,12 +114,12 @@
     <!-- Header -->
     <div class="flex items-end justify-between border-b border-edge/60 pb-4">
       <div>
-        <h2 class="text-lg font-bold tracking-tight text-ink">Pointer & Sensor Settings</h2>
-        <p class="text-xs text-ink-dim">Hardware resolution, polling rate, debounce filter and surface tracking.</p>
+        <h2 class="text-lg font-bold tracking-tight text-ink">{i18n.t('pointer.title')}</h2>
+        <p class="text-xs text-ink-dim">{i18n.t('pointer.subtitle')}</p>
       </div>
       <div class="flex items-center gap-2">
         <span class="rounded-full border border-edge bg-canvas px-3 py-1 text-[11px] font-semibold text-ink-dim">
-          Levels: <strong class="text-ink font-bold">{draft.dpi_stages.length}</strong> / {stageLimit}
+          {i18n.t('pointer.levels')} <strong class="text-ink font-bold">{draft.dpi_stages.length}</strong> / {stageLimit}
         </span>
         {#if draft.dpi_stages.length < stageLimit}
           <button
@@ -145,18 +128,18 @@
             class="flex items-center gap-1.5 rounded-full border border-glorious/40 bg-zinc-900 px-3 py-1 text-[11px] font-bold text-glorious transition hover:border-glorious hover:bg-glorious/10 shadow-[0_0_10px_rgba(255,184,0,0.15)]"
           >
             <Plus size={13} />
-            <span>Add Level</span>
+            <span>{i18n.t('pointer.add_level')}</span>
           </button>
         {/if}
       </div>
     </div>
 
-    <!-- Keychron-style Horizontal DPI Stages Strip -->
+    <!-- Horizontal DPI Stages Strip -->
     <section class="rounded-2xl border border-edge bg-card p-5">
       <div class="mb-3 flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <span class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">DPI STAGES</span>
-          <span class="text-xs text-ink-dim">Select a stage card to calibrate its sensitivity below</span>
+          <span class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">{i18n.t('pointer.dpi_stages')}</span>
+          <span class="text-xs text-ink-dim">{i18n.t('pointer.select_card')}</span>
         </div>
         {#if caps?.hasXySplitDpi}
           <button
@@ -166,7 +149,7 @@
             aria-pressed={draft.xy_split}
             title="X/Y Split DPI"
           >
-            <span>X/Y Split</span>
+            <span>{i18n.t('pointer.xy_split')}</span>
           </button>
         {/if}
       </div>
@@ -212,7 +195,7 @@
                   />
                 </label>
                 <span class="text-[11px] font-bold tracking-wider {isActive ? 'text-glorious' : 'text-ink-dim'}">
-                  STAGE {stageNumber}
+                  {i18n.t('pointer.stage_n', { n: stageNumber })}
                 </span>
               </div>
 
@@ -256,11 +239,11 @@
               {#if isActive}
                 <span class="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-glorious">
                   <span class="h-1.5 w-1.5 rounded-full bg-glorious animate-pulse shadow-[0_0_6px_#ffb800]"></span>
-                  ACTIVE
+                  {i18n.t('pointer.active')}
                 </span>
               {:else}
                 <span class="text-[10px] font-medium text-ink-faint group-hover:text-ink-dim">
-                  Click to select
+                  {i18n.t('pointer.click_to_select')}
                 </span>
               {/if}
             </div>
@@ -268,12 +251,12 @@
         {/each}
       </div>
 
-      <!-- Keychron 3D Tactile DPI Slider for Active Stage -->
+      <!-- Tactile DPI Slider for Active Stage -->
       {#if activeStage}
         <div class="mt-6 rounded-xl border border-edge/80 bg-panel/70 p-4">
           <div class="mb-3 flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-ink">Stage {draft.active_dpi_stage} Sensitivity:</span>
+              <span class="text-xs font-bold text-ink">{i18n.t('pointer.sensitivity', { n: draft.active_dpi_stage })}</span>
               <span class="text-sm font-extrabold text-glorious">{activeStage.value} DPI</span>
             </div>
             <div class="flex items-center gap-1.5">
@@ -322,7 +305,7 @@
             />
           </div>
 
-          <!-- Keychron Ruler Scale Ticks -->
+          <!-- Ruler Scale Ticks -->
           <div class="mt-2 flex justify-between text-[10px] font-medium text-ink-faint">
             {#each dpiTicks as tick (tick)}
               {@const isNearest = Math.abs(activeStage.value - tick) < 200}
@@ -339,15 +322,15 @@
       {/if}
     </section>
 
-    <!-- Polling Rate (Keychron Style with Office & Gaming segments) -->
+    <!-- Polling Rate -->
     <section class="rounded-2xl border border-edge bg-card p-5">
       <div class="mb-3 flex items-center justify-between">
         <div>
-          <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">POLLING RATE</h3>
-          <p class="text-xs text-ink-dim">Hardware report rate sent to USB / 2.4 GHz wireless receiver.</p>
+          <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">{i18n.t('pointer.polling_rate')}</h3>
+          <p class="text-xs text-ink-dim">{i18n.t('pointer.polling_rate_desc')}</p>
         </div>
         <span class="rounded-full border border-edge bg-canvas px-3 py-1 text-[11px] font-bold text-glorious">
-          Active: {draft.polling_rate} Hz
+          {i18n.t('pointer.polling_active', { rate: draft.polling_rate })}
         </span>
       </div>
 
@@ -364,25 +347,25 @@
           >
             <div class="text-base font-black tracking-tight">{rate} Hz</div>
             <div class="mt-1 text-[10px] font-semibold uppercase tracking-wider {isGaming ? (isSelected ? 'text-glorious' : 'text-emerald-400') : 'text-ink-faint'}">
-              {isGaming ? 'Esports / Gaming' : 'Office / Casual'}
+              {isGaming ? i18n.t('pointer.esports_gaming') : i18n.t('pointer.office_casual')}
             </div>
           </button>
         {/each}
       </div>
     </section>
 
-    <!-- Debounce Time & Lift-Off Distance (Two-column Keychron cards) -->
+    <!-- Debounce Time & Lift-Off Distance (Two-column cards) -->
     <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
       <!-- Lift-Off Distance (LOD) -->
       <section class="rounded-2xl border border-edge bg-card p-5 flex flex-col justify-between">
         <div>
           <div class="flex items-center justify-between mb-1">
-            <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">LIFT-OFF DISTANCE (LOD)</h3>
+            <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">{i18n.t('pointer.lod')}</h3>
             <span class="rounded-full border border-edge bg-canvas px-2.5 py-0.5 text-[11px] font-bold text-glorious">
               {draft.lod} mm
             </span>
           </div>
-          <p class="text-xs text-ink-dim mb-4">Sensor cut-off height above the mousepad surface.</p>
+          <p class="text-xs text-ink-dim mb-4">{i18n.t('pointer.lod_desc')}</p>
         </div>
 
         <div class="flex gap-3">
@@ -397,7 +380,7 @@
             >
               <div class="text-sm font-extrabold">{opt.label}</div>
               <div class="text-[10px] text-ink-faint mt-0.5 font-normal">
-                {opt.value === 1 ? 'Low (Competitive)' : 'High (Thick Pad)'}
+                {opt.value === 1 ? i18n.t('pointer.lod_low') : i18n.t('pointer.lod_high')}
               </div>
             </button>
           {/each}
@@ -408,12 +391,12 @@
       <section class="rounded-2xl border border-edge bg-card p-5 flex flex-col justify-between">
         <div>
           <div class="flex items-center justify-between mb-1">
-            <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">DEBOUNCE TIME</h3>
+            <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">{i18n.t('pointer.debounce')}</h3>
             <span class="rounded-full border border-edge bg-canvas px-2.5 py-0.5 text-[11px] font-bold text-glorious">
               {draft.debounce_ms} ms
             </span>
           </div>
-          <p class="text-xs text-ink-dim mb-3">Mechanical switch debounce delay to prevent inadvertent double clicks.</p>
+          <p class="text-xs text-ink-dim mb-3">{i18n.t('pointer.debounce_desc')}</p>
         </div>
 
         <div>
@@ -428,19 +411,19 @@
             class="w-full cursor-pointer"
           />
           <div class="mt-2 flex justify-between text-[10px] text-ink-faint font-medium">
-            <span>0 ms (Fastest response)</span>
-            <span>16 ms (Safest filter)</span>
+            <span>{i18n.t('pointer.debounce_fastest')}</span>
+            <span>{i18n.t('pointer.debounce_safest')}</span>
           </div>
         </div>
       </section>
     </div>
 
-    <!-- Conditional: Competitive Mode (Only if hardware sensor actually supports it) -->
+    <!-- Conditional: Competitive Mode -->
     {#if caps?.hasCompetitiveMode}
       <section class="rounded-2xl border border-edge bg-card p-5">
         <div class="mb-3">
-          <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">SENSOR TRACKING MODE</h3>
-          <p class="text-xs text-ink-dim">Choose between balanced battery consumption and competitive scan latency.</p>
+          <h3 class="text-[11px] font-bold tracking-[0.16em] uppercase text-ink-faint">{i18n.t('pointer.tracking_mode')}</h3>
+          <p class="text-xs text-ink-dim">{i18n.t('pointer.tracking_mode_desc')}</p>
         </div>
 
         <div class="flex gap-3">
@@ -450,8 +433,8 @@
             class="flex-1 rounded-xl border p-3.5 text-left transition {!draft.competitive_mode ? 'border-glorious/70 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.20)]' : 'border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
             aria-pressed={!draft.competitive_mode}
           >
-            <div class="text-xs font-black tracking-wide">Standard Mode</div>
-            <div class="text-[11px] text-ink-dim mt-0.5">Optimal power consumption and extended battery life.</div>
+            <div class="text-xs font-black tracking-wide">{i18n.t('pointer.standard_mode')}</div>
+            <div class="text-[11px] text-ink-dim mt-0.5">{i18n.t('pointer.standard_mode_desc')}</div>
           </button>
           <button
             type="button"
@@ -459,8 +442,8 @@
             class="flex-1 rounded-xl border p-3.5 text-left transition {draft.competitive_mode ? 'border-glorious/70 bg-zinc-900 text-glorious shadow-[0_0_12px_rgba(255,184,0,0.20)]' : 'border-edge bg-canvas text-ink-dim hover:border-edge-bright hover:text-ink'}"
             aria-pressed={draft.competitive_mode}
           >
-            <div class="text-xs font-black tracking-wide">Competitive Mode</div>
-            <div class="text-[11px] text-ink-dim mt-0.5">Ultra-low motion latency sensor sampling for competitive play.</div>
+            <div class="text-xs font-black tracking-wide">{i18n.t('pointer.competitive_mode')}</div>
+            <div class="text-[11px] text-ink-dim mt-0.5">{i18n.t('pointer.competitive_mode_desc')}</div>
           </button>
         </div>
       </section>

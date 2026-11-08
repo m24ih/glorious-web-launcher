@@ -37,6 +37,7 @@
     bindingsToPinActions,
     getDeviceCapabilities,
   } from './lib/actions';
+  import { i18n } from './lib/i18n.svelte';
   import type { DeviceCapabilities } from './lib/types';
 
   // State management
@@ -291,9 +292,9 @@
         }
       }
       hasUserModified = false;
-      showToast(`Factory reset applied to ${targets.length} profiles`);
+      showToast(i18n.t('toast.factory_reset'));
     } catch (e: any) {
-      showToast(e?.message ?? 'Factory reset failed');
+      showToast(e?.message ?? i18n.t('toast.failed'));
     } finally {
       applying = false;
     }
@@ -338,9 +339,9 @@
         }
         hasUserModified = false;
       }
-      showToast('Settings applied to mouse');
+      showToast(i18n.t('toast.applied'));
     } catch (e: any) {
-      showToast(e?.message ?? 'Failed to apply settings to device');
+      showToast(e?.message ?? i18n.t('toast.failed'));
     } finally {
       applying = false;
     }
@@ -414,7 +415,7 @@
               }
             }
           }
-          showToast('Settings synced from hardware');
+          showToast(i18n.t('toast.synced'));
         }
       },
       (status) => {
@@ -479,7 +480,7 @@
               {Math.max(device.battery.percentage, 1)}%
             </span>
           {/if}
-          <span class="text-xs text-ink-dim capitalize">· {activeTab}</span>
+          <span class="text-xs text-ink-dim">· {i18n.t(`nav.${activeTab}`)}</span>
         </div>
 
         {#if activeTab !== 'firmware' && activeTab !== 'tray'}
@@ -489,7 +490,7 @@
               class="flex items-center gap-2 rounded-full border border-edge bg-card px-4 py-2 text-xs font-semibold text-ink-dim hover:border-edge-bright hover:text-ink transition"
               onclick={onReset}
             >
-              Reset
+              {i18n.t('action.reset')}
             </button>
             <button
               type="button"
@@ -497,7 +498,7 @@
               disabled={!canApply}
               onclick={onApply}
             >
-              {applying ? 'Applying…' : 'Apply to Mouse'}
+              {applying ? i18n.t('action.applying') : i18n.t('action.apply')}
             </button>
           </div>
         {/if}

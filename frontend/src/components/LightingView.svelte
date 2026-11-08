@@ -2,6 +2,7 @@
   import { onDestroy } from 'svelte';
   import type { SettingsDraft, LightingSettings } from '../lib/types';
   import { LIGHTING_EFFECTS, SLEEP_OPTIONS, clamp } from '../lib/actions';
+  import { i18n } from '../lib/i18n.svelte';
 
   interface Props {
     draft: SettingsDraft;
@@ -20,6 +21,13 @@
   );
 
   const isOff = $derived(currentEffect.id === 0 || (currentEffect.name as string) === 'off');
+
+  function getEffectLabel(eff: { name: string; label: string }): string {
+    const key = `lighting.effect.${eff.name}`;
+    const translated = i18n.t(key);
+    return translated !== key ? translated : eff.label;
+  }
+  const currentEffectLabel = $derived(getEffectLabel(currentEffect));
 
   // Dynamic animation duration: 100% speed -> 0.5s, 0% speed -> 5.0s
   const animDuration = $derived(Math.max(0.5, (100 - draft.lighting.rate) / 20));
@@ -213,7 +221,7 @@
             <span>{isOff ? 'HARDWARE LEDS OFF' : 'INSTANT LIVE HARDWARE SYNC'}</span>
           </div>
           <div>
-            <h3 class="text-lg font-black tracking-wide text-ink">{currentEffect.label}</h3>
+            <h3 class="text-lg font-black tracking-wide text-ink">{currentEffectLabel}</h3>
             <p class="text-xs text-ink-dim">Real-time chassis diffusers and scroll wheel LED simulation.</p>
           </div>
           <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 pt-1">
@@ -311,7 +319,7 @@
             onclick={() => setEffect(effect.id)}
           >
             <div class="flex items-center justify-between mb-2.5">
-              <span class="text-xs font-bold {isSelected ? 'text-glorious' : 'text-ink'}">{effect.label}</span>
+              <span class="text-xs font-bold {isSelected ? 'text-glorious' : 'text-ink'}">{getEffectLabel(effect)}</span>
               {#if isSelected}
                 <span class="h-2 w-2 rounded-full bg-glorious shadow-[0_0_6px_#ffb800]"></span>
               {/if}
