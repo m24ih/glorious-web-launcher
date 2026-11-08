@@ -52,7 +52,10 @@ next to the executable. No configuration file is required.
 ### Linux desktop integration
 
 The service registers a StatusNotifierItem tray icon and continues polling while
-it runs, even without an open browser. Click the icon to open the control panel;
+it runs, even without an open browser. The icon is blue while charging, red at
+10% or less, yellow at 25% or less, green above 25%, and gray when no reliable
+battery data is available. With multiple devices it represents the connected
+device with the lowest reported battery percentage. Click the icon to open the control panel;
 the menu shows device status and can stop the service. Desktop notifications
 (via `notify-send`) report device connection changes, charging, and low battery
 at 20%, 10%, and 5%. A compatible tray host, a session D-Bus, and `notify-send`

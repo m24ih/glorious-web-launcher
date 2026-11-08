@@ -3,12 +3,66 @@ use std::sync::Arc;
 
 use ksni::menu::{MenuItem, StandardItem, SubMenu};
 use ksni::TrayMethods;
-use ksni::{ToolTip, Tray};
+use ksni::{Icon, ToolTip, Tray};
 use tokio::sync::Notify;
 
 use crate::api::AppState;
 use crate::types::{DeviceStatusView, DeviceView, EffectSpec, RgbPatch, SettingsPatch};
 use crate::ws::WsEvent;
+
+const COLOR_DISCONNECTED: [u8; 4] = [255, 110, 115, 120];
+const COLOR_CHARGING: [u8; 4] = [255, 52, 152, 219];
+const COLOR_BATTERY_GREEN: [u8; 4] = [255, 46, 204, 113];
+const COLOR_BATTERY_YELLOW: [u8; 4] = [255, 241, 196, 15];
+const COLOR_BATTERY_RED: [u8; 4] = [255, 231, 76, 60];
+
+fn battery_color(connected: bool, battery: Option<(u8, bool)>) -> [u8; 4] {
+    match (connected, battery) {
+        (true, Some((_, true))) => COLOR_CHARGING,
+        (true, Some((percent, false))) if percent <= 10 => COLOR_BATTERY_RED,
+        (true, Some((percent, false))) if percent <= 25 => COLOR_BATTERY_YELLOW,
+        (true, Some(_)) => COLOR_BATTERY_GREEN,
+        _ => COLOR_DISCONNECTED,
+    }
+}
+
+fn mouse_icon(color: [u8; 4]) -> Icon {
+    let mut data = vec![0; 32 * 32 * 4];
+    for y in 0..32_i32 {
+        for x in 0..32_i32 {
+            let dx = x - 15;
+            let dy = y - 16;
+            let outer = dx * dx * 169 + dy * dy * 100;
+            let inner = dx * dx * 121 + dy * dy * 64;
+            let outline = outer <= 16900 && inner >= 7744;
+            let divider = (y == 14 && (6..=24).contains(&x)) || (x == 15 && (4..=14).contains(&y));
+            if outline || divider {
+                let index = ((y * 32 + x) * 4) as usize;
+                data[index..index + 4].copy_from_slice(&color);
+            }
+        }
+    }
+    Icon {
+        width: 32,
+        height: 32,
+        data,
+    }
+}
+
+fn device_icon(devices: &[DeviceView]) -> Icon {
+    let battery = devices
+        .iter()
+        .filter(|device| device.connected && device.status == DeviceStatusView::Connected)
+        .filter_map(|device| {
+            device
+                .battery
+                .as_ref()
+                .filter(|battery| battery.status == "ok")
+        })
+        .min_by_key(|battery| battery.percentage)
+        .map(|battery| (battery.percentage, battery.charging));
+    mouse_icon(battery_color(battery.is_some(), battery))
+}
 
 #[derive(Debug, PartialEq, Eq)]
 enum Notice {
@@ -96,13 +150,14 @@ impl Tray for DesktopTray {
     fn category(&self) -> ksni::Category {
         ksni::Category::Hardware
     }
-    fn icon_name(&self) -> String {
-        "input-mouse".into()
+    fn icon_pixmap(&self) -> Vec<Icon> {
+        vec![device_icon(&self.devices)]
     }
     fn tool_tip(&self) -> ToolTip {
         ToolTip {
             title: self.title(),
             description: status_lines(&self.devices).join("\n"),
+            icon_pixmap: self.icon_pixmap(),
             ..Default::default()
         }
     }
@@ -639,6 +694,28 @@ mod tests {
             app,
             settings: Default::default(),
         };
+        tray.devices[0].battery = Some(crate::types::BatteryInfo {
+            percentage: 50,
+            charging: false,
+            status: "ok".into(),
+        });
+        assert!(device_icon(&tray.devices)
+            .data
+            .chunks_exact(4)
+            .any(|pixel| pixel == COLOR_BATTERY_GREEN));
+        let mut low = tray.devices[0].clone();
+        low.battery.as_mut().unwrap().percentage = 8;
+        tray.devices.push(low);
+        assert!(device_icon(&tray.devices)
+            .data
+            .chunks_exact(4)
+            .any(|pixel| pixel == COLOR_BATTERY_RED));
+        tray.devices[1].status = DeviceStatusView::Asleep;
+        assert!(device_icon(&tray.devices)
+            .data
+            .chunks_exact(4)
+            .any(|pixel| pixel == COLOR_BATTERY_GREEN));
+        tray.devices.pop();
         tray.settings.show_polling = false;
         let menu = tray.menu();
         let MenuItem::Standard(status) = &menu[2] else {
@@ -686,6 +763,29 @@ mod tests {
             panic!("missing second device")
         };
         assert!(!first.enabled && second.enabled);
+    }
+
+    #[test]
+    fn icon_colors_follow_battery_and_connection() {
+        assert_eq!(battery_color(false, None), COLOR_DISCONNECTED);
+        assert_eq!(battery_color(true, None), COLOR_DISCONNECTED);
+        assert_eq!(battery_color(true, Some((5, true))), COLOR_CHARGING);
+        assert_eq!(battery_color(true, Some((10, false))), COLOR_BATTERY_RED);
+        assert_eq!(battery_color(true, Some((11, false))), COLOR_BATTERY_YELLOW);
+        assert_eq!(battery_color(true, Some((25, false))), COLOR_BATTERY_YELLOW);
+        assert_eq!(battery_color(true, Some((26, false))), COLOR_BATTERY_GREEN);
+    }
+
+    #[test]
+    fn mouse_icon_has_transparent_background_and_colored_pixels() {
+        let icon = mouse_icon(COLOR_CHARGING);
+        assert_eq!((icon.width, icon.height), (32, 32));
+        assert_eq!(icon.data.len(), 32 * 32 * 4);
+        assert!(icon
+            .data
+            .chunks_exact(4)
+            .any(|pixel| pixel == COLOR_CHARGING));
+        assert!(icon.data.chunks_exact(4).any(|pixel| pixel == [0, 0, 0, 0]));
     }
 
     #[test]
