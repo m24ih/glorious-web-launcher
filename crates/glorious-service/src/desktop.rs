@@ -122,13 +122,57 @@ impl Tray for DesktopTray {
         if self.devices.is_empty() {
             items.push(
                 StandardItem {
-                    label: "No device connected".into(),
+                    label: "Status: No device connected".into(),
+                    enabled: false,
+                    ..Default::default()
+                }
+                .into(),
+            );
+            items.push(
+                StandardItem {
+                    label: "Battery: unavailable".into(),
                     enabled: false,
                     ..Default::default()
                 }
                 .into(),
             );
         }
+        for device in &self.devices {
+            let status = match device.status {
+                DeviceStatusView::Connected => "Connected",
+                DeviceStatusView::Asleep => "Asleep or out of range",
+                DeviceStatusView::Unsupported => "Unsupported",
+                DeviceStatusView::Error => "Error",
+                DeviceStatusView::Disconnected => "Disconnected",
+            };
+            items.push(
+                StandardItem {
+                    label: format!("{}: {status}", device.name),
+                    enabled: false,
+                    ..Default::default()
+                }
+                .into(),
+            );
+            let battery = match &device.battery {
+                Some(battery) => format!(
+                    "Battery: {}%{}",
+                    battery.percentage,
+                    if battery.charging { " (charging)" } else { "" }
+                ),
+                None => "Battery: unavailable".into(),
+            };
+            items.push(
+                StandardItem {
+                    label: battery,
+                    enabled: false,
+                    ..Default::default()
+                }
+                .into(),
+            );
+        }
+        items.push(MenuItem::Separator);
+        let mut device_modes = Vec::new();
+        let mut mode_enabled = false;
         for device in &self.devices {
             let ready = device.connected
                 && device.supported
@@ -158,7 +202,7 @@ impl Tray for DesktopTray {
                         .collect();
                     actions.push(
                         SubMenu {
-                            label: "DPI (saved stages)".into(),
+                            label: "DPI".into(),
                             submenu: entries,
                             enabled: !settings.dpi_stages.is_empty(),
                             ..Default::default()
@@ -296,17 +340,31 @@ impl Tray for DesktopTray {
                     );
                 }
             }
-            let status = status_lines(std::slice::from_ref(device)).join("");
-            items.push(
-                SubMenu {
-                    label: status,
-                    enabled: ready && !actions.is_empty(),
-                    submenu: actions,
-                    ..Default::default()
-                }
-                .into(),
-            );
+            let enabled = ready && !actions.is_empty();
+            mode_enabled |= enabled;
+            if self.devices.len() == 1 {
+                device_modes = actions;
+            } else {
+                device_modes.push(
+                    SubMenu {
+                        label: device.name.clone(),
+                        enabled,
+                        submenu: actions,
+                        ..Default::default()
+                    }
+                    .into(),
+                );
+            }
         }
+        items.push(
+            SubMenu {
+                label: "Mode".into(),
+                enabled: mode_enabled,
+                submenu: device_modes,
+                ..Default::default()
+            }
+            .into(),
+        );
         items.push(MenuItem::Separator);
         items.push(
             StandardItem {
@@ -583,9 +641,18 @@ mod tests {
         };
         tray.settings.show_polling = false;
         let menu = tray.menu();
-        let MenuItem::SubMenu(device_menu) = &menu[2] else {
-            panic!("missing device menu")
+        let MenuItem::Standard(status) = &menu[2] else {
+            panic!("missing status")
         };
+        assert!(!status.enabled);
+        let MenuItem::Standard(battery) = &menu[3] else {
+            panic!("missing battery")
+        };
+        assert!(!battery.enabled);
+        let MenuItem::SubMenu(device_menu) = &menu[5] else {
+            panic!("missing mode menu")
+        };
+        assert_eq!(device_menu.label, "Mode");
         let labels: Vec<_> = device_menu
             .submenu
             .iter()
@@ -594,13 +661,31 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert_eq!(labels, vec!["DPI (saved stages)", "Profile", "Lighting"]);
+        assert_eq!(labels, vec!["DPI", "Profile", "Lighting"]);
         tray.devices[0].supported = false;
         let menu = tray.menu();
-        let MenuItem::SubMenu(device_menu) = &menu[2] else {
+        let MenuItem::SubMenu(device_menu) = &menu[5] else {
             panic!("missing device menu")
         };
         assert!(!device_menu.enabled);
+
+        let mut second = tray.devices[0].clone();
+        second.name = "Second mouse".into();
+        second.slug = "second".into();
+        second.supported = true;
+        tray.devices.push(second);
+        let menu = tray.menu();
+        let MenuItem::SubMenu(mode) = &menu[7] else {
+            panic!("missing multi-device mode")
+        };
+        assert_eq!(mode.submenu.len(), 2);
+        let MenuItem::SubMenu(first) = &mode.submenu[0] else {
+            panic!("missing first device")
+        };
+        let MenuItem::SubMenu(second) = &mode.submenu[1] else {
+            panic!("missing second device")
+        };
+        assert!(!first.enabled && second.enabled);
     }
 
     #[test]
