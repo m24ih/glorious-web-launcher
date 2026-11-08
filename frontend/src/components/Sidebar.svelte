@@ -1,8 +1,11 @@
 <script lang="ts">
-  import { Battery, BatteryFull, BatteryLow, BatteryMedium, Bluetooth, Compass, Cpu, Move, MousePointerClick, Palette, Settings, Sliders, Usb, Workflow, Zap, Globe } from 'lucide-svelte';
+  import { onMount } from 'svelte';
+  import { Battery, BatteryFull, BatteryLow, BatteryMedium, Bluetooth, Compass, Cpu, Move, MousePointerClick, Palette, Settings, Sliders, Usb, Workflow, Zap, Globe, RefreshCw, Rocket, Sparkles } from 'lucide-svelte';
   import type { DeviceView, DeviceCapabilities, TabId } from '../lib/types';
   import { LAUNCHER_VERSION } from '../lib/actions';
   import { i18n } from '../lib/i18n.svelte';
+  import { updater } from '../lib/updater.svelte';
+  import UpdateModal from './UpdateModal.svelte';
 
   interface Props {
     device: DeviceView | null;
@@ -49,6 +52,27 @@
   const batteryPct = $derived(
     device?.battery ? Math.max(device.battery.percentage, 1) : null,
   );
+
+  let checkNotice = $state<{ text: string; isError?: boolean } | null>(null);
+
+  async function handleManualCheck() {
+    checkNotice = { text: i18n.t('updater.checking') };
+    const hasUpdate = await updater.checkForUpdates(false);
+    if (hasUpdate) {
+      checkNotice = null;
+      updater.openModal();
+    } else if (updater.status === 'error') {
+      checkNotice = { text: updater.errorMessage || i18n.t('updater.failed'), isError: true };
+      setTimeout(() => { checkNotice = null; }, 3500);
+    } else {
+      checkNotice = { text: i18n.t('updater.up_to_date') };
+      setTimeout(() => { checkNotice = null; }, 3500);
+    }
+  }
+
+  onMount(() => {
+    updater.checkForUpdates(true);
+  });
 </script>
 
 <aside class="flex h-full w-[210px] shrink-0 flex-col overflow-y-auto border-r border-edge bg-panel px-3 py-4">
@@ -197,9 +221,45 @@
       </div>
     </div>
 
+    {#if updater.updateAvailable}
+      <button
+        type="button"
+        class="group flex items-center justify-between gap-1 rounded-lg border border-glorious/50 bg-glorious/15 px-2 py-1.5 text-[11px] font-bold text-glorious shadow-[0_0_12px_rgba(255,184,0,0.2)] transition hover:bg-glorious hover:text-canvas cursor-pointer animate-pulse-soft"
+        onclick={() => updater.openModal()}
+        title="{i18n.t('updater.update_available')}"
+      >
+        <span class="flex items-center gap-1.5 truncate">
+          <span>🚀</span>
+          <span class="truncate">{i18n.t('updater.new_version')}</span>
+          <span class="font-mono text-[10px]">v{updater.latestVersion}</span>
+        </span>
+        <Sparkles size={13} class="shrink-0" />
+      </button>
+    {/if}
+
     <div class="flex flex-col gap-0.5 text-[9px] text-ink-faint">
-      <span>Launcher v{LAUNCHER_VERSION}</span>
-      <span>Service v{serviceVersion || '—'}</span>
+      <div class="flex items-center justify-between">
+        <button
+          type="button"
+          class="flex items-center gap-1 text-left transition hover:text-ink cursor-pointer"
+          onclick={handleManualCheck}
+          title="{i18n.t('updater.check')}"
+        >
+          <span>Launcher v{LAUNCHER_VERSION}</span>
+          <RefreshCw
+            size={9}
+            class={updater.status === 'checking' ? 'animate-spin text-glorious' : 'text-ink-faint hover:text-ink'}
+          />
+        </button>
+        <span>Service v{serviceVersion || '—'}</span>
+      </div>
+      {#if checkNotice}
+        <div class="truncate text-[8.5px] font-medium {checkNotice.isError ? 'text-[#ff5c5c]' : 'text-glorious'}">
+          {checkNotice.text}
+        </div>
+      {/if}
     </div>
   </div>
+
+  <UpdateModal />
 </aside>

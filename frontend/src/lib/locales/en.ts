@@ -236,6 +236,20 @@ export const en: Record<string, string> = {
   'tray.opt_notifications': 'Desktop notifications',
   'tray.opt_notifications_desc': 'Show connection, charging, and low-battery alerts.',
   'tray.linux_notice': 'Changes are saved with your launcher configuration.',
+
+  // Auto-Updater
+  'updater.new_version': 'New Version',
+  'updater.update_available': 'A New Version is Available!',
+  'updater.update_now': 'Update Now',
+  'updater.later': 'Later',
+  'updater.check': 'Check for Updates',
+  'updater.checking': 'Checking for updates…',
+  'updater.up_to_date': 'You are up to date',
+  'updater.downloading': 'Downloading and installing update…',
+  'updater.restarting': 'Installer launched. Glorious Web Launcher will update and restart shortly.',
+  'updater.failed': 'Failed to update',
+  'updater.release_notes': 'Release Notes',
+  'updater.current_version': 'Current version: v{version}',
 };
 
 export default en;

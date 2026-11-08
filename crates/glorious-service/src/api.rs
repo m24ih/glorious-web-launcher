@@ -103,6 +103,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/devices", get(list_devices))
         .route("/api/device/{slug}", get(device_details))
         .route("/api/device/{slug}/apply", post(apply_device))
+        .route("/api/update/install", post(update_install))
         .route("/ws", get(ws::ws_handler))
         .fallback(static_handler)
         .layer(CorsLayer::permissive())
@@ -190,6 +191,100 @@ async fn apply_device(
     });
 
     Ok(Json(result))
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct UpdateInstallRequest {
+    pub download_url: String,
+    pub version: String,
+}
+
+async fn update_install(
+    Json(req): Json<UpdateInstallRequest>,
+) -> Response {
+    let url = req.download_url.trim();
+    if !url.starts_with("https://github.com/m24ih/glorious-web-launcher/releases/")
+        && !url.starts_with("https://gitlab.com/m24ih/glorious-web-launcher/-/releases/")
+    {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "Invalid download URL source" })),
+        )
+            .into_response();
+    }
+
+    let safe_version: String = req
+        .version
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '.' || *c == '-')
+        .collect();
+    let safe_version = if safe_version.is_empty() {
+        "latest".to_string()
+    } else {
+        safe_version
+    };
+
+    let setup_path = std::env::temp_dir().join(format!("GloriousWebLauncher-Setup-v{safe_version}.exe"));
+
+    let curl_bin = if cfg!(windows) { "curl.exe" } else { "curl" };
+    let setup_str = match setup_path.to_str() {
+        Some(s) => s,
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": "Invalid temporary path" })),
+            )
+                .into_response();
+        }
+    };
+
+    let status = match tokio::process::Command::new(curl_bin)
+        .args(["-fSL", url, "-o", setup_str])
+        .status()
+        .await
+    {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::error!(error = %e, "failed to run curl for update");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": "Failed to download update binary" })),
+            )
+                .into_response();
+        }
+    };
+
+    if !status.success() {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": "Failed to download update binary" })),
+        )
+            .into_response();
+    }
+
+    #[cfg(windows)]
+    {
+        if let Err(e) = std::process::Command::new(&setup_path)
+            .args(["/SILENT", "/CLOSEAPPLICATIONS"])
+            .spawn()
+        {
+            tracing::error!(error = %e, "failed to launch installer");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": "Failed to launch installer" })),
+            )
+                .into_response();
+        }
+    }
+
+    (
+        StatusCode::OK,
+        Json(json!({
+            "status": "installing",
+            "message": "Update downloaded. The installer will now update Glorious Web Launcher."
+        })),
+    )
+        .into_response()
 }
 
 fn unix_seconds() -> u64 {
@@ -377,5 +472,35 @@ mod tests {
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["error"], "not found");
+    }
+
+    #[tokio::test]
+    async fn update_install_rejects_invalid_url() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use http_body_util::BodyExt;
+        use tower::ServiceExt;
+
+        let app = test_router();
+        let payload = serde_json::json!({
+            "download_url": "https://malicious-site.com/malware.exe",
+            "version": "0.1.4"
+        });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/update/install")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(serde_json::to_vec(&payload).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["error"], "Invalid download URL source");
     }
 }

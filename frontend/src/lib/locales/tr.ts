@@ -236,6 +236,20 @@ export const tr: Record<string, string> = {
   'tray.opt_notifications': 'Masaüstü bildirimleri',
   'tray.opt_notifications_desc': 'Bağlantı, şarj durumu ve düşük pil uyarılarını bildirim olarak göster.',
   'tray.linux_notice': 'Değişiklikler başlatıcı yapılandırmanızla birlikte otomatik kaydedilir.',
+
+  // Otomatik Güncelleyici
+  'updater.new_version': 'Yeni Sürüm',
+  'updater.update_available': 'Yeni Bir Sürüm Mevcut!',
+  'updater.update_now': 'Şimdi Güncelle',
+  'updater.later': 'Daha Sonra',
+  'updater.check': 'Güncellemeleri Denetle',
+  'updater.checking': 'Güncellemeler denetleniyor…',
+  'updater.up_to_date': 'En güncel sürümü kullanıyorsunuz',
+  'updater.downloading': 'Güncelleme indiriliyor ve kuruluyor…',
+  'updater.restarting': 'Kurulum başlatıldı. Uygulama otomatik olarak güncellenip yeniden başlatılacak.',
+  'updater.failed': 'Güncelleme başlatılamadı',
+  'updater.release_notes': 'Sürüm Notları',
+  'updater.current_version': 'Mevcut sürüm: v{version}',
 };
 
 export default tr;

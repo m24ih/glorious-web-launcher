@@ -2,7 +2,7 @@
 ; Produces a standalone, single-file installer for Windows users without any dependencies.
 
 #define MyAppName "Glorious Web Launcher"
-#define MyAppVersion "0.1.3"
+#define MyAppVersion "0.1.4"
 #define MyAppPublisher "m24ih"
 #define MyAppURL "https://gitlab.com/m24ih/glorious-web-launcher"
 #define MyAppExeName "glorious-service.exe"
@@ -25,7 +25,7 @@ PrivilegesRequired=lowest
 
 ; Output settings
 OutputDir=..\..\target\installer
-OutputBaseFilename=GloriousWebLauncher-Setup
+OutputBaseFilename=GloriousWebLauncher-Setup-v{#MyAppVersion}
 SetupIconFile=app.ico
 UninstallDisplayIcon={app}\app.ico
 
@@ -67,7 +67,7 @@ Name: "{userstartup}\{#MyAppName}"; Filename: "wscript.exe"; Parameters: """{app
 
 [Run]
 ; Launch silently to system tray and open browser UI when finished
-Filename: "wscript.exe"; Parameters: """{app}\run-hidden.vbs"" ""{app}\{#MyAppExeName}"" --open"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
+Filename: "wscript.exe"; Parameters: """{app}\run-hidden.vbs"" ""{app}\{#MyAppExeName}"" --open"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait
 
 [UninstallRun]
 ; Kill running service before uninstalling files

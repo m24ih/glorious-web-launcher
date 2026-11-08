@@ -100,7 +100,8 @@ try {
     Pop-Location
 }
 
-$InstallerPath = "$RootDir\target\installer\GloriousWebLauncher-Setup.exe"
+$Installer = Get-ChildItem -Path "$RootDir\target\installer" -Filter "GloriousWebLauncher-Setup*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+$InstallerPath = if ($Installer) { $Installer.FullName } else { "" }
 if (Test-Path $InstallerPath) {
     $Item = Get-Item $InstallerPath
     $SizeMb = [math]::Round($Item.Length / 1MB, 2)
