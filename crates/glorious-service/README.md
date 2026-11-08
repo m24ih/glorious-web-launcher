@@ -42,10 +42,24 @@ Options:
 | `--devices-json <PATH>` | `GLORIOUS_DEVICES_JSON` | `data/glorious_devices.json` |
 | `--delay-ms <MS>` | `GLORIOUS_HID_DELAY_MS` | `80` |
 | `--probe` | — | read firmware/battery/settings once and exit |
+| `--no-browser` | — | do not open the control panel on startup |
+| `--no-desktop` | — | disable Linux tray and desktop notifications |
 | `-v` | — | debug logging |
 
 The database is resolved from the current directory, the workspace root, or
 next to the executable. No configuration file is required.
+
+### Linux desktop integration
+
+The service registers a StatusNotifierItem tray icon and continues polling while
+it runs, even without an open browser. Click the icon to open the control panel;
+the menu shows device status and can stop the service. Desktop notifications
+(via `notify-send`) report device connection changes, charging, and low battery
+at 20%, 10%, and 5%. A compatible tray host, a session D-Bus, and `notify-send`
+are needed for the corresponding desktop features; the HTTP service still runs
+without them. `--no-desktop` disables both tray and notifications for headless use.
+An asleep or out-of-range wireless mouse may still have a connected receiver;
+the service cannot distinguish those states from receiver telemetry alone.
 
 ### Permissions
 

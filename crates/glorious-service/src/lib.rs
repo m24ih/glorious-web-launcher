@@ -15,6 +15,8 @@
 
 pub mod api;
 pub mod devices;
+#[cfg(target_os = "linux")]
+pub mod desktop;
 pub mod hid;
 pub mod manager;
 pub mod profiles;

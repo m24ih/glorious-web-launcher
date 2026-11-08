@@ -138,7 +138,7 @@ fn run_server(manager: Arc<DeviceManager>, options: Options) -> ExitCode {
     runtime.block_on(async move {
         let state = AppState::new(manager);
         ws::spawn_telemetry(state.clone());
-        let app = api::router(state);
+        let app = api::router(state.clone());
 
         let listener = match TcpListener::bind(&options.bind).await {
             Ok(listener) => listener,
@@ -162,12 +162,18 @@ fn run_server(manager: Arc<DeviceManager>, options: Options) -> ExitCode {
         let url = format!("http://{host}");
         println!("Glorious Launcher web UI available at: {url}");
 
+        let shutdown = Arc::new(tokio::sync::Notify::new());
+        #[cfg(target_os = "linux")]
+        if options.desktop {
+            glorious_service::desktop::spawn(&state, url.clone(), shutdown.clone());
+        }
+
         if options.open_browser {
             open_browser(&url);
         }
 
         match axum::serve(listener, app)
-            .with_graceful_shutdown(shutdown_signal())
+            .with_graceful_shutdown(shutdown_signal(shutdown))
             .await
         {
             Ok(()) => {
@@ -182,8 +188,11 @@ fn run_server(manager: Arc<DeviceManager>, options: Options) -> ExitCode {
     })
 }
 
-async fn shutdown_signal() {
-    let _ = tokio::signal::ctrl_c().await;
+async fn shutdown_signal(shutdown: Arc<tokio::sync::Notify>) {
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {},
+        _ = shutdown.notified() => {},
+    }
     info!("shutdown signal received");
 }
 
@@ -226,6 +235,7 @@ struct Options {
     delay: Duration,
     verbose: bool,
     open_browser: bool,
+    desktop: bool,
 }
 
 impl Options {
@@ -237,6 +247,7 @@ impl Options {
             delay: default_delay(),
             verbose: false,
             open_browser: true,
+            desktop: true,
         };
 
         while let Some(arg) = args.next() {
@@ -244,6 +255,7 @@ impl Options {
                 "--probe" => options.probe = true,
                 "--open" => options.open_browser = true,
                 "--no-browser" => options.open_browser = false,
+                "--no-desktop" => options.desktop = false,
                 "--verbose" | "-v" => options.verbose = true,
                 "--bind" => {
                     options.bind = args
@@ -331,6 +343,7 @@ OPTIONS:
     --probe                  Read firmware/battery/settings once and print JSON
     --open                   Open browser on startup (default)
     --no-browser             Do not open browser on startup
+    --no-desktop             Disable Linux system tray and notifications
     -v, --verbose            Debug logging
     -h, --help               Show this help
     -V, --version            Show version
@@ -373,6 +386,14 @@ mod tests {
             .expect("parse succeeds")
             .expect("some options");
         assert!(!opts.open_browser);
+    }
+
+    #[test]
+    fn options_no_desktop_disables_desktop_integration() {
+        let opts = Options::parse(["--no-desktop".to_string()].into_iter())
+            .expect("parse succeeds")
+            .expect("some options");
+        assert!(!opts.desktop);
     }
 
     #[test]
