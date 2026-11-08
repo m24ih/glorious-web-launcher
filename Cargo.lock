@@ -775,7 +775,7 @@ dependencies = [
 
 [[package]]
 name = "glorious-service"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "axum",
  "crossbeam-channel",
