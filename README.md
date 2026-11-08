@@ -27,8 +27,10 @@ The installer builds the frontend and release binary, installs them under
 `${XDG_DATA_HOME:-~/.local/share}/glorious-launcher`, and adds an applications
 menu entry. It asks for sudo to install and reload the HID udev rule. Reconnect
 the mouse or receiver afterwards. Running it again updates the installation;
-existing profiles and tray preferences are preserved. It does not start the
-application automatically. A tray host, session D-Bus, and `notify-send` are
+existing profiles and tray preferences are preserved. The installer enables
+and starts a systemd user service, which starts automatically at login. The
+application menu entry opens the running service in your browser. A tray host,
+session D-Bus, and `notify-send` are
 needed for desktop integration.
 
 For development:
