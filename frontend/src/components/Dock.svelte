@@ -1,16 +1,18 @@
 <script lang="ts">
   import type { DeviceCapabilities, PinId, ActionCategory, PinAction } from '../lib/types';
-  import { DOCK_CATEGORIES, DOCK_ACTIONS, PIN_LABELS, loadMacros } from '../lib/actions';
+  import { DOCK_CATEGORIES, DOCK_ACTIONS, PIN_LABELS, DEFAULT_PIN_ACTIONS, loadMacros } from '../lib/actions';
+  import { RotateCcw } from 'lucide-svelte';
 
   interface Props {
     selectedPin: PinId | null;
     mappings: PinAction[];
     onAssign: (category: ActionCategory, action: string) => void;
+    onResetPin?: (pin: PinId) => void;
     leftClickLocked?: boolean;
     caps?: DeviceCapabilities;
   }
 
-  let { selectedPin, mappings, onAssign, leftClickLocked = false, caps }: Props = $props();
+  let { selectedPin, mappings, onAssign, onResetPin, leftClickLocked = false, caps }: Props = $props();
 
   let activeCategory = $state<ActionCategory>('mousekeys');
   let shortcutFilter = $state<'all' | 'win' | 'mac'>('all');
@@ -48,6 +50,28 @@
 
   // Load macros when macro category selected to allow direct selection
   let macroList = $derived(activeCategory === 'macro' ? loadMacros() : []);
+
+
+  const defaultAction = $derived(
+    selectedPin ? DEFAULT_PIN_ACTIONS.find((m) => m.pin === selectedPin) : null
+  );
+
+  const isCustomized = $derived(
+    Boolean(
+      currentMapping &&
+      defaultAction &&
+      (currentMapping.action !== defaultAction.action || currentMapping.category !== defaultAction.category)
+    )
+  );
+
+  function resetCurrentButton() {
+    if (!selectedPin || !defaultAction) return;
+    if (onResetPin) {
+      onResetPin(selectedPin);
+    } else {
+      onAssign(defaultAction.category, defaultAction.action);
+    }
+  }
 
   const isLocked = $derived(selectedPin === 'left' && leftClickLocked);
 
@@ -107,17 +131,32 @@
         {/each}
       </div>
 
-      <!-- Button Rebind Capsule -->
-      {#if selectedPin && currentLabel}
-        <div class="flex items-center gap-2 rounded border border-[#6277ff]/60 bg-[#4657c9]/15 px-3 py-1 text-[11px] font-medium text-[#aeb8ff]">
-          <span class="h-1.5 w-1.5 rounded-full bg-[#6277ff]"></span>
-          <span>Editing: <strong class="text-ink">{currentLabel}</strong> &rarr; <span class="font-bold">{currentMapping?.action ?? currentLabel}</span></span>
-        </div>
-      {:else}
-        <div class="flex items-center gap-2 rounded border border-edge bg-card px-3 py-1 text-[11px] text-ink-faint">
-          <span>Select a button pin on the mouse above to rebind</span>
-        </div>
-      {/if}
+      <!-- Right actions: Reset Button + Button Rebind Capsule -->
+      <div class="flex items-center gap-2">
+        {#if selectedPin && isCustomized}
+          <button
+            type="button"
+            class="flex items-center gap-1.5 rounded border border-amber-500/40 bg-amber-950/30 px-3 py-1 text-[11px] font-bold text-amber-300 transition hover:border-amber-400 hover:bg-amber-900/50 hover:text-white"
+            onclick={resetCurrentButton}
+            title="Reset {currentLabel} to its default function ({defaultAction?.action})"
+          >
+            <RotateCcw size={12} class="text-amber-400" />
+            <span>Reset Button</span>
+          </button>
+        {/if}
+
+        <!-- Button Rebind Capsule -->
+        {#if selectedPin && currentLabel}
+          <div class="flex items-center gap-2 rounded border border-[#6277ff]/60 bg-[#4657c9]/15 px-3 py-1 text-[11px] font-medium text-[#aeb8ff]">
+            <span class="h-1.5 w-1.5 rounded-full bg-[#6277ff]"></span>
+            <span>Editing: <strong class="text-ink">{currentLabel}</strong> &rarr; <span class="font-bold">{currentMapping?.action ?? currentLabel}</span></span>
+          </div>
+        {:else}
+          <div class="flex items-center gap-2 rounded border border-edge bg-card px-3 py-1 text-[11px] text-ink-faint">
+            <span>Select a button pin on the mouse above to rebind</span>
+          </div>
+        {/if}
+      </div>
     </div>
 
     <!-- Lock banner for Left Click -->
