@@ -9,3 +9,4 @@ __pycache__/
 frontend/public/assets
 graphify-out/
 docs/
+.config/

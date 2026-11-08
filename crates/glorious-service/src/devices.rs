@@ -306,7 +306,9 @@ pub fn default_candidates() -> Vec<PathBuf> {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             candidates.push(dir.join("../..").join(DEFAULT_RELATIVE_PATH));
+            candidates.push(dir.join("..").join(DEFAULT_RELATIVE_PATH));
             candidates.push(dir.join("data").join("glorious_devices.json"));
+            candidates.push(dir.join("..").join("data").join("glorious_devices.json"));
         }
     }
 

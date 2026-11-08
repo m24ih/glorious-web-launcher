@@ -87,12 +87,26 @@ pub struct ProfileStore {
 }
 
 impl ProfileStore {
-    /// Standard path: `~/.config/glorious-launcher/profiles.json`.
+    /// Standard path: `~/.config/glorious-launcher/profiles.json` (Linux) or
+    /// `%APPDATA%\glorious-launcher\profiles.json` (Windows).
     pub fn default_path() -> PathBuf {
+        #[cfg(target_os = "windows")]
+        {
+            if let Some(appdata) = std::env::var_os("APPDATA") {
+                return PathBuf::from(appdata)
+                    .join("glorious-launcher")
+                    .join("profiles.json");
+            }
+        }
         if let Some(xdg) = std::env::var_os("XDG_CONFIG_HOME") {
             PathBuf::from(xdg).join("glorious-launcher").join("profiles.json")
         } else if let Some(home) = std::env::var_os("HOME") {
             PathBuf::from(home)
+                .join(".config")
+                .join("glorious-launcher")
+                .join("profiles.json")
+        } else if let Some(userprofile) = std::env::var_os("USERPROFILE") {
+            PathBuf::from(userprofile)
                 .join(".config")
                 .join("glorious-launcher")
                 .join("profiles.json")
@@ -362,6 +376,23 @@ pub fn sensible_default_device(_slug: &str) -> DeviceProfileConfig {
 
 /// Search for existing Glorious CORE database (`DeviceDB.db`).
 pub fn find_glorious_core_db() -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        for env_var in &["APPDATA", "LOCALAPPDATA"] {
+            if let Some(base) = std::env::var_os(env_var) {
+                let userdata = PathBuf::from(base).join("Glorious Core").join("userdata");
+                if let Ok(entries) = fs::read_dir(&userdata) {
+                    for entry in entries.flatten() {
+                        let path = entry.path().join("data").join("DeviceDB.db");
+                        if path.exists() {
+                            return Some(path);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // 1. Explicit path
     let explicit = PathBuf::from("/home/melih/.config/Glorious Core/userdata/melih/data/DeviceDB.db");
     if explicit.exists() {
