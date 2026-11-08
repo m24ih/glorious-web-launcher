@@ -14,6 +14,25 @@ web launcher for Glorious mice without the Windows/Electron dependency.
 
 ## Quick start
 
+For a Linux desktop installation, install Rust/Cargo, Node.js and npm, a C
+compiler, `pkg-config`, and the libudev development files first (for example,
+`base-devel` and `systemd` on Arch, or `build-essential`, `pkg-config` and
+`libudev-dev` on Debian/Ubuntu). Then run from the repository:
+
+```sh
+./install.sh
+```
+
+The installer builds the frontend and release binary, installs them under
+`${XDG_DATA_HOME:-~/.local/share}/glorious-launcher`, and adds an applications
+menu entry. It asks for sudo to install and reload the HID udev rule. Reconnect
+the mouse or receiver afterwards. Running it again updates the installation;
+existing profiles and tray preferences are preserved. It does not start the
+application automatically. A tray host, session D-Bus, and `notify-send` are
+needed for desktop integration.
+
+For development:
+
 ```sh
 cargo build
 cargo run -p glorious-service -- --probe   # firmware/battery sanity check
