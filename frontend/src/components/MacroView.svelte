@@ -113,6 +113,7 @@
         id: Math.random().toString(36).substring(2),
         type: 'down',
         key: e.key,
+        code: e.code,
         keyCode: e.keyCode,
         delay: delta,
       });
@@ -125,6 +126,7 @@
         id: Math.random().toString(36).substring(2),
         type: 'up',
         key: e.key,
+        code: e.code,
         keyCode: e.keyCode,
         delay: delta,
       });
@@ -852,7 +854,10 @@
                             value={event.key || ''}
                             class="w-full rounded border border-edge bg-canvas px-2 py-1.5 text-sm font-mono outline-none focus:border-glorious placeholder:text-ink-faint"
                             placeholder="Key (e.g. Ctrl, A, F1)..."
-                            oninput={(e) => (event.key = (e.target as HTMLInputElement).value)}
+                            oninput={(e) => {
+                              event.key = (e.target as HTMLInputElement).value;
+                              event.code = undefined;
+                            }}
                           />
                         {:else if event.type === 'delay'}
                           <input

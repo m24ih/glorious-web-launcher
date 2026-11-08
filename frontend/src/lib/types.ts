@@ -315,6 +315,7 @@ export interface MacroEvent {
   id: string;
   type: MacroEventType;
   key?: string;
+  code?: string;
   keyCode?: number;
   delay?: number;
   text?: string;
