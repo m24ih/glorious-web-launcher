@@ -8,3 +8,4 @@ graphify-out/.graphify*
 __pycache__/
 frontend/public/assets
 graphify-out/
+docs/
