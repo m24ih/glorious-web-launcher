@@ -16,6 +16,7 @@ use serde_json::Value;
 pub const DEVICES_JSON_ENV: &str = "GLORIOUS_DEVICES_JSON";
 /// Path of the database relative to the repository root.
 pub const DEFAULT_RELATIVE_PATH: &str = "data/glorious_devices.json";
+const EMBEDDED_DEVICES_JSON: &str = include_str!("../../../data/glorious_devices.json");
 
 /// Protocol family used by the vendor feature-report interface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -213,6 +214,16 @@ impl DeviceEntry {
 }
 
 impl DeviceDatabase {
+    /// Load from a JSON string.
+    pub fn from_str(raw: &str) -> Result<Self, DbError> {
+        let db: Self = serde_json::from_str(raw)
+            .map_err(|e| DbError::Parse(PathBuf::from("<embedded>"), e.to_string()))?;
+        if db.devices.is_empty() {
+            return Err(DbError::Empty(PathBuf::from("<embedded>")));
+        }
+        Ok(db)
+    }
+
     /// Load from an explicit file.
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self, DbError> {
         let path = path.as_ref();
@@ -249,7 +260,10 @@ impl DeviceDatabase {
             }
         }
 
-        Err(DbError::NotFound(tried))
+        match Self::from_str(EMBEDDED_DEVICES_JSON) {
+            Ok(db) => Ok((db, PathBuf::from("<embedded>"))),
+            Err(_) => Err(DbError::NotFound(tried)),
+        }
     }
 
     pub fn devices(&self) -> &[DeviceEntry] {
@@ -295,6 +309,22 @@ pub fn default_candidates() -> Vec<PathBuf> {
     if let Ok(cwd) = std::env::current_dir() {
         candidates.push(cwd.join(DEFAULT_RELATIVE_PATH));
     }
+
+    if let Ok(data_home) = std::env::var("XDG_DATA_HOME") {
+        candidates.push(PathBuf::from(data_home).join("glorious-launcher/data/glorious_devices.json"));
+    } else if let Ok(home) = std::env::var("HOME") {
+        candidates.push(
+            PathBuf::from(home)
+                .join(".local/share/glorious-launcher/data/glorious_devices.json"),
+        );
+    }
+
+    candidates.push(PathBuf::from(
+        "/usr/share/glorious-launcher/data/glorious_devices.json",
+    ));
+    candidates.push(PathBuf::from(
+        "/usr/local/share/glorious-launcher/data/glorious_devices.json",
+    ));
 
     // `env!("CARGO_MANIFEST_DIR")` = <repo>/crates/glorious-service
     candidates.push(
