@@ -1,5 +1,5 @@
 pkgname=glorious-launcher-bin
-pkgver=0.1.6
+pkgver=0.1.7
 pkgrel=1
 pkgdesc='Prebuilt web GUI and HID service for Glorious gaming mice'
 arch=('x86_64')
