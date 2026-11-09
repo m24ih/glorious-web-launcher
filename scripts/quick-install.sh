@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly VERSION="0.1.7"
+readonly VERSION="0.1.8"
 readonly PROJECT_URL="https://gitlab.com/m24ih/glorious-web-launcher"
 readonly BIN_DIR="${HOME}/.local/bin"
 readonly DATA_DIR="${HOME}/.local/share"

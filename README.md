@@ -26,7 +26,15 @@ web launcher for Glorious mice without the Windows/Electron dependency.
    sudo apt install ./glorious-launcher_*.deb
    ```
 
-2. **Arch Linux / Manjaro / EndeavourOS:** Download the package from
+2. **Fedora / RHEL / openSUSE:** Download the `.rpm` package from
+   [Releases](https://gitlab.com/m24ih/glorious-web-launcher/releases) and install
+   it with `dnf` or `zypper`:
+
+   ```sh
+   dnf install ./glorious-launcher-*.rpm
+   ```
+
+3. **Arch Linux / Manjaro / EndeavourOS:** Download the package from
    [Releases](https://gitlab.com/m24ih/glorious-web-launcher/releases) and install
    it with:
 
@@ -36,7 +44,7 @@ web launcher for Glorious mice without the Windows/Electron dependency.
 
    Or use the `PKGBUILD` / `PKGBUILD-bin` in `packaging/linux/arch/`.
 
-3. **Universal Linux (Fast Installer):** Download and run the standalone
+4. **Universal Linux (Fast Installer):** Download and run the standalone
    `quick-install.sh` or release tarball:
 
    ```sh

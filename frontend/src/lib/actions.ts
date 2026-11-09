@@ -22,7 +22,7 @@ import type {
   SettingsDraft,
 } from './types';
 
-export const LAUNCHER_VERSION = '0.1.7';
+export const LAUNCHER_VERSION = '0.1.8';
 
 export function getDeviceCapabilities(device?: DeviceView | null): DeviceCapabilities {
   const slug = device?.slug ?? '';

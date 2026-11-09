@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly VERSION="0.1.7"
+readonly VERSION="0.1.8"
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 root_dir="$(cd -- "${script_dir}/.." && pwd)"
 package_dir="${root_dir}/target/packages"
@@ -60,6 +60,9 @@ printf '[3/4] Created %s\n' "${package_dir}/${bundle_name}.tar.gz"
 
 printf '[4/4] Building Debian package...\n'
 "${script_dir}/build-deb.sh"
+
+printf 'Building RPM package...\n'
+"${script_dir}/build-rpm.sh"
 
 if command -v makepkg >/dev/null 2>&1; then
     printf 'Building Arch package...\n'
