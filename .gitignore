@@ -10,3 +10,11 @@ frontend/public/assets
 graphify-out/
 docs/
 .config/
+
+# Arch packaging artifacts
+packaging/linux/arch/src/
+packaging/linux/arch/pkg/
+packaging/linux/arch/*.tar.gz
+*.pkg.tar.zst
+*.deb
+

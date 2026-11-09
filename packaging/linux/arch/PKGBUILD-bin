@@ -1,0 +1,29 @@
+pkgname=glorious-launcher-bin
+pkgver=0.1.5
+pkgrel=1
+pkgdesc='Prebuilt web GUI and HID service for Glorious gaming mice'
+arch=('x86_64')
+url='https://gitlab.com/m24ih/glorious-web-launcher'
+license=('MIT')
+depends=('glibc' 'libudev.so')
+source=(
+    "glorious-service-$pkgver::https://gitlab.com/m24ih/glorious-web-launcher/-/releases/v$pkgver/downloads/glorious-service-linux-x86_64"
+    "glorious-web-launcher-$pkgver.tar.gz::https://gitlab.com/m24ih/glorious-web-launcher/-/archive/v$pkgver/glorious-web-launcher-v$pkgver.tar.gz"
+)
+sha256sums=('SKIP' 'SKIP')
+
+package() {
+    install -Dm755 "glorious-service-$pkgver" "$pkgdir/usr/bin/glorious-service"
+    install -Dm644 "glorious-web-launcher-v$pkgver/data/glorious_devices.json" \
+        "$pkgdir/usr/share/glorious-launcher/data/glorious_devices.json"
+    install -Dm644 "glorious-web-launcher-v$pkgver/packaging/linux/glorious-launcher.desktop" \
+        "$pkgdir/usr/share/applications/glorious-launcher.desktop"
+    install -Dm644 "glorious-web-launcher-v$pkgver/packaging/linux/glorious-launcher.svg" \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/glorious-launcher.svg"
+    install -Dm644 "glorious-web-launcher-v$pkgver/packaging/linux/glorious-launcher.service" \
+        "$pkgdir/usr/lib/systemd/user/glorious-launcher.service"
+    install -Dm644 "glorious-web-launcher-v$pkgver/packaging/99-glorious.rules" \
+        "$pkgdir/usr/lib/udev/rules.d/99-glorious.rules"
+    install -Dm644 "glorious-web-launcher-v$pkgver/LICENSE" \
+        "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

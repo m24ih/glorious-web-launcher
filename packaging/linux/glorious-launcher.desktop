@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Glorious Web Launcher
+GenericName=Gaming Mouse Configuration
+Comment=Configure Glorious gaming mice
+Exec=xdg-open http://127.0.0.1:25820/
+Icon=glorious-launcher
+Terminal=false
+Categories=Settings;HardwareSettings;
+Keywords=glorious;mouse;rgb;dpi;

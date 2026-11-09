@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+if [ -x "/usr/bin/udevadm" ]; then
+    udevadm control --reload-rules || true
+    udevadm trigger || true
+fi
+if [ -x "/usr/bin/update-desktop-database" ]; then
+    update-desktop-database -q /usr/share/applications || true
+fi

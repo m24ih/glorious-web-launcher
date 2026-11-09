@@ -1,0 +1,8 @@
+Package: glorious-launcher
+Version: 0.1.5
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: m24ih <https://gitlab.com/m24ih/glorious-web-launcher>
+Description: Web GUI and HID service for Glorious gaming mice
+ Local web launcher and service for configuring Glorious gaming mice without proprietary vendor bloat.

@@ -16,6 +16,44 @@ web launcher for Glorious mice without the Windows/Electron dependency.
 
 ### Linux
 
+#### For End Users (Recommended - No Rust or Node.js needed)
+
+1. **Debian / Ubuntu / Linux Mint / Pop!_OS:** Download the `.deb` package from
+   [Releases](https://gitlab.com/m24ih/glorious-web-launcher/releases) and install
+   it via Software Center or:
+
+   ```sh
+   sudo apt install ./glorious-launcher_*.deb
+   ```
+
+2. **Arch Linux / Manjaro / EndeavourOS:** Download the package from
+   [Releases](https://gitlab.com/m24ih/glorious-web-launcher/releases) and install
+   it with:
+
+   ```sh
+   sudo pacman -U ./glorious-launcher-*.pkg.tar.zst
+   ```
+
+   Or use the `PKGBUILD` / `PKGBUILD-bin` in `packaging/linux/arch/`.
+
+3. **Universal Linux (Fast Installer):** Download and run the standalone
+   `quick-install.sh` or release tarball:
+
+   ```sh
+   curl -fsSL -o install-glorious.sh https://gitlab.com/m24ih/glorious-web-launcher/-/raw/main/scripts/quick-install.sh && bash install-glorious.sh
+   ```
+
+   Or extract the release tarball and run `./quick-install.sh`. To uninstall:
+
+   ```sh
+   ./quick-install.sh --uninstall
+   ```
+
+#### Building from Source / Maintainers
+
+Run `./scripts/build-linux-packages.sh` to generate all packages in
+`target/packages/`.
+
 For a Linux desktop installation, install Rust/Cargo, Node.js and npm, a C
 compiler, `pkg-config`, and the libudev development files first (for example,
 `base-devel` and `systemd` on Arch, or `build-essential`, `pkg-config` and

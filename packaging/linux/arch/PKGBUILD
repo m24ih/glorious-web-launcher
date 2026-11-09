@@ -1,0 +1,34 @@
+pkgname=glorious-launcher
+pkgver=0.1.5
+pkgrel=1
+pkgdesc='Web GUI and HID service for Glorious gaming mice'
+arch=('x86_64')
+url='https://gitlab.com/m24ih/glorious-web-launcher'
+license=('MIT')
+depends=('glibc' 'libudev.so')
+makedepends=('cargo' 'npm')
+source=("$pkgname-$pkgver.tar.gz::https://gitlab.com/m24ih/glorious-web-launcher/-/archive/v$pkgver/glorious-web-launcher-v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cd "$srcdir/glorious-web-launcher-v$pkgver"
+    npm --prefix frontend ci
+    npm --prefix frontend run build
+    cargo build --release --locked -p glorious-service
+}
+
+package() {
+    cd "$srcdir/glorious-web-launcher-v$pkgver"
+    install -Dm755 "target/release/glorious-service" "$pkgdir/usr/bin/glorious-service"
+    install -Dm644 data/glorious_devices.json \
+        "$pkgdir/usr/share/glorious-launcher/data/glorious_devices.json"
+    install -Dm644 packaging/linux/glorious-launcher.desktop \
+        "$pkgdir/usr/share/applications/glorious-launcher.desktop"
+    install -Dm644 packaging/linux/glorious-launcher.svg \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/glorious-launcher.svg"
+    install -Dm644 packaging/linux/glorious-launcher.service \
+        "$pkgdir/usr/lib/systemd/user/glorious-launcher.service"
+    install -Dm644 packaging/99-glorious.rules \
+        "$pkgdir/usr/lib/udev/rules.d/99-glorious.rules"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

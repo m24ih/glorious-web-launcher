@@ -1,0 +1,6 @@
+#!/bin/sh
+set -e
+if [ -x "/usr/bin/udevadm" ]; then
+    udevadm control --reload-rules || true
+    udevadm trigger || true
+fi
