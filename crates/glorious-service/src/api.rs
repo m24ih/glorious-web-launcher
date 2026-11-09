@@ -137,6 +137,8 @@ async fn health(State(state): State<AppState>) -> Json<Value> {
         "status": "ok",
         "service": env!("CARGO_PKG_NAME"),
         "version": env!("CARGO_PKG_VERSION"),
+        "os": std::env::consts::OS,
+        "arch": std::env::consts::ARCH,
         "uptime_seconds": state.started_at.elapsed().as_secs(),
         "ws_subscribers": state.tx.receiver_count(),
     }))
@@ -199,9 +201,7 @@ pub struct UpdateInstallRequest {
     pub version: String,
 }
 
-async fn update_install(
-    Json(req): Json<UpdateInstallRequest>,
-) -> Response {
+async fn update_install(Json(req): Json<UpdateInstallRequest>) -> Response {
     let url = req.download_url.trim();
     if !url.starts_with("https://github.com/m24ih/glorious-web-launcher/releases/")
         && !url.starts_with("https://gitlab.com/m24ih/glorious-web-launcher/-/releases/")
@@ -224,7 +224,32 @@ async fn update_install(
         safe_version
     };
 
-    let setup_path = std::env::temp_dir().join(format!("GloriousWebLauncher-Setup-v{safe_version}.exe"));
+    #[cfg(target_os = "linux")]
+    if cfg!(target_os = "linux") {
+        match install_linux_update(url, &safe_version).await {
+            Ok(()) => {
+                return (
+                    StatusCode::OK,
+                    Json(json!({
+                        "status": "installing",
+                        "message": "Update applied. Glorious Web Launcher is restarting..."
+                    })),
+                )
+                    .into_response();
+            }
+            Err(error) => {
+                tracing::error!(%error, "failed to install Linux update");
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({ "error": error })),
+                )
+                    .into_response();
+            }
+        }
+    }
+
+    let setup_path =
+        std::env::temp_dir().join(format!("GloriousWebLauncher-Setup-v{safe_version}.exe"));
 
     let curl_bin = if cfg!(windows) { "curl.exe" } else { "curl" };
     let setup_str = match setup_path.to_str() {
@@ -285,6 +310,89 @@ async fn update_install(
         })),
     )
         .into_response()
+}
+
+#[cfg(target_os = "linux")]
+async fn install_linux_update(url: &str, safe_version: &str) -> Result<(), String> {
+    use std::fs::{self, File};
+    use std::os::unix::fs::PermissionsExt;
+
+    let current_exe = std::env::current_exe().map_err(|error| error.to_string())?;
+    let current_dir = current_exe
+        .parent()
+        .ok_or_else(|| "Could not determine current executable directory".to_string())?;
+    let temp_dir = std::env::temp_dir();
+    let file_name = format!(
+        "glorious-service-update-{safe_version}-{}",
+        std::process::id()
+    );
+    let (download_path, install_dir) = match File::create(current_dir.join(&file_name)) {
+        Ok(_) => (current_dir.join(&file_name), current_dir.to_path_buf()),
+        Err(_) => (temp_dir.join(&file_name), temp_dir.clone()),
+    };
+
+    let download_str = download_path
+        .to_str()
+        .ok_or_else(|| "Invalid temporary path".to_string())?;
+    let status = tokio::process::Command::new("curl")
+        .args(["-fSL", url, "-o", download_str])
+        .status()
+        .await
+        .map_err(|error| format!("Failed to run curl: {error}"))?;
+    if !status.success() {
+        let _ = fs::remove_file(&download_path);
+        return Err("Failed to download update binary".to_string());
+    }
+
+    let new_bin_path = if url.to_ascii_lowercase().contains(".tar.gz") {
+        let extracted_path =
+            install_dir.join(format!("glorious-service-update-{}", std::process::id()));
+        let archive = File::open(&download_path).map_err(|error| error.to_string())?;
+        let decoder = flate2::read::GzDecoder::new(archive);
+        let mut archive = tar::Archive::new(decoder);
+        let mut found = false;
+        for entry in archive.entries().map_err(|error| error.to_string())? {
+            let mut entry = entry.map_err(|error| error.to_string())?;
+            let path = entry
+                .path()
+                .map_err(|error| error.to_string())?
+                .into_owned();
+            if path.file_name().and_then(|name| name.to_str()) == Some("glorious-service") {
+                let mut output =
+                    File::create(&extracted_path).map_err(|error| error.to_string())?;
+                std::io::copy(&mut entry, &mut output).map_err(|error| error.to_string())?;
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            let _ = fs::remove_file(&download_path);
+            return Err("Update archive does not contain glorious-service".to_string());
+        }
+        extracted_path
+    } else {
+        download_path.clone()
+    };
+
+    fs::set_permissions(&new_bin_path, fs::Permissions::from_mode(0o755))
+        .map_err(|error| error.to_string())?;
+    fs::rename(&new_bin_path, &current_exe).map_err(|error| error.to_string())?;
+    let _ = fs::remove_file(&download_path);
+
+    let restarted = tokio::process::Command::new("systemctl")
+        .args(["--user", "restart", "glorious-launcher.service"])
+        .status()
+        .await
+        .map(|status| status.success())
+        .unwrap_or(false);
+    if !restarted {
+        let mut command = std::process::Command::new(&current_exe);
+        command.args(std::env::args_os().skip(1));
+        command
+            .spawn()
+            .map_err(|error| format!("Failed to restart updated service: {error}"))?;
+    }
+    Ok(())
 }
 
 fn unix_seconds() -> u64 {

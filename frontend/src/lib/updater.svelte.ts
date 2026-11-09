@@ -33,6 +33,7 @@ class UpdaterStore {
   status = $state<UpdateStatus>('idle');
   errorMessage = $state<string>('');
   modalOpen = $state<boolean>(false);
+  serverOS = $state<string>('');
 
   openModal() {
     this.modalOpen = true;
@@ -46,6 +47,13 @@ class UpdaterStore {
     this.status = 'checking';
     this.errorMessage = '';
     try {
+      const healthRes = await fetch('/api/health');
+      if (!healthRes.ok) {
+        throw new Error(`Health API HTTP ${healthRes.status}`);
+      }
+      const health = await healthRes.json();
+      this.serverOS = typeof health.os === 'string' ? health.os.toLowerCase() : '';
+
       const res = await fetch('https://api.github.com/repos/m24ih/glorious-web-launcher/releases/latest');
       if (!res.ok) {
         if (res.status === 404) {
@@ -62,11 +70,21 @@ class UpdaterStore {
       this.publishedAt = release.published_at ? new Date(release.published_at).toLocaleDateString() : '';
 
       const assets: any[] = Array.isArray(release.assets) ? release.assets : [];
-      const exeAsset = assets.find(
-        (a) => typeof a.name === 'string' && a.name.toLowerCase().endsWith('.exe'),
-      );
-      if (exeAsset?.browser_download_url) {
-        this.downloadUrl = exeAsset.browser_download_url;
+      const asset = assets.find((a) => {
+        if (typeof a.name !== 'string') return false;
+        if (this.serverOS === 'linux') {
+          return (
+            a.name === 'glorious-service-linux-x86_64' ||
+            /glorious-launcher.*linux.*\.tar\.gz/i.test(a.name)
+          );
+        }
+        if (this.serverOS === 'windows') {
+          return a.name.toLowerCase().endsWith('.exe');
+        }
+        return false;
+      });
+      if (asset?.browser_download_url) {
+        this.downloadUrl = asset.browser_download_url;
       } else {
         this.downloadUrl = '';
       }

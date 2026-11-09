@@ -1,0 +1,52 @@
+image: rust:latest
+
+stages:
+  - test
+  - build
+  - release
+
+before_script:
+  - apt-get update
+  - apt-get install -y nodejs npm libudev-dev
+
+test:
+  stage: test
+  script:
+    - npm --prefix frontend ci
+    - npm --prefix frontend run build
+    - cargo test --locked -p glorious-service
+
+build:
+  stage: build
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG'
+  script:
+    - npm --prefix frontend ci
+    - npm --prefix frontend run build
+    - cargo build --release --locked -p glorious-service
+    - mkdir -p target/packages
+    - cp target/release/glorious-service target/packages/glorious-service-linux-x86_64
+    - scripts/build-linux-packages.sh --skip-frontend --skip-cargo
+  artifacts:
+    paths:
+      - target/packages/*
+
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  before_script: []
+  needs:
+    - job: build
+      artifacts: true
+  rules:
+    - if: '$CI_COMMIT_TAG'
+  script:
+    - |
+      release-cli create \
+        --name "Glorious Web Launcher ${CI_COMMIT_TAG}" \
+        --tag-name "${CI_COMMIT_TAG}" \
+        --description "Release ${CI_COMMIT_TAG}" \
+        --assets-link "{\"name\":\"glorious-service-linux-x86_64\",\"url\":\"${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/target/packages/glorious-service-linux-x86_64?job=build\"}" \
+        --assets-link "{\"name\":\"Debian package\",\"url\":\"${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/target/packages/glorious-launcher_0.1.6_amd64.deb?job=build\"}" \
+        --assets-link "{\"name\":\"Linux tarball\",\"url\":\"${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/target/packages/glorious-launcher-v0.1.6-linux-x86_64.tar.gz?job=build\"}"
