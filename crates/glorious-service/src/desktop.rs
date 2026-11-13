@@ -23,13 +23,15 @@ pub const COLOR_DISCONNECTED: [u8; 4] = [255, 110, 115, 120];
 pub const COLOR_CHARGING: [u8; 4] = [255, 52, 152, 219];
 pub const COLOR_BATTERY_GREEN: [u8; 4] = [255, 46, 204, 113];
 pub const COLOR_BATTERY_YELLOW: [u8; 4] = [255, 241, 196, 15];
+pub const COLOR_BATTERY_ORANGE: [u8; 4] = [255, 230, 126, 34];
 pub const COLOR_BATTERY_RED: [u8; 4] = [255, 231, 76, 60];
 
 pub fn battery_color(connected: bool, battery: Option<(u8, bool)>) -> [u8; 4] {
     match (connected, battery) {
         (true, Some((_, true))) => COLOR_CHARGING,
-        (true, Some((percent, false))) if percent <= 10 => COLOR_BATTERY_RED,
-        (true, Some((percent, false))) if percent <= 25 => COLOR_BATTERY_YELLOW,
+        (true, Some((percent, false))) if percent <= 25 => COLOR_BATTERY_RED,
+        (true, Some((percent, false))) if percent <= 60 => COLOR_BATTERY_ORANGE,
+        (true, Some((percent, false))) if percent <= 90 => COLOR_BATTERY_YELLOW,
         (true, Some(_)) => COLOR_BATTERY_GREEN,
         _ => COLOR_DISCONNECTED,
     }
@@ -743,7 +745,7 @@ mod tests {
         assert!(device_icon(&tray.devices)
             .data
             .chunks_exact(4)
-            .any(|pixel| pixel == COLOR_BATTERY_GREEN));
+            .any(|pixel| pixel == COLOR_BATTERY_ORANGE));
         let mut low = tray.devices[0].clone();
         low.battery.as_mut().unwrap().percentage = 8;
         tray.devices.push(low);
@@ -755,7 +757,7 @@ mod tests {
         assert!(device_icon(&tray.devices)
             .data
             .chunks_exact(4)
-            .any(|pixel| pixel == COLOR_BATTERY_GREEN));
+            .any(|pixel| pixel == COLOR_BATTERY_ORANGE));
         tray.devices.pop();
         tray.settings.show_polling = false;
         let menu = tray.menu();
@@ -811,10 +813,14 @@ mod tests {
         assert_eq!(battery_color(false, None), COLOR_DISCONNECTED);
         assert_eq!(battery_color(true, None), COLOR_DISCONNECTED);
         assert_eq!(battery_color(true, Some((5, true))), COLOR_CHARGING);
-        assert_eq!(battery_color(true, Some((10, false))), COLOR_BATTERY_RED);
-        assert_eq!(battery_color(true, Some((11, false))), COLOR_BATTERY_YELLOW);
-        assert_eq!(battery_color(true, Some((25, false))), COLOR_BATTERY_YELLOW);
-        assert_eq!(battery_color(true, Some((26, false))), COLOR_BATTERY_GREEN);
+        assert_eq!(battery_color(true, Some((0, false))), COLOR_BATTERY_RED);
+        assert_eq!(battery_color(true, Some((25, false))), COLOR_BATTERY_RED);
+        assert_eq!(battery_color(true, Some((26, false))), COLOR_BATTERY_ORANGE);
+        assert_eq!(battery_color(true, Some((60, false))), COLOR_BATTERY_ORANGE);
+        assert_eq!(battery_color(true, Some((61, false))), COLOR_BATTERY_YELLOW);
+        assert_eq!(battery_color(true, Some((90, false))), COLOR_BATTERY_YELLOW);
+        assert_eq!(battery_color(true, Some((91, false))), COLOR_BATTERY_GREEN);
+        assert_eq!(battery_color(true, Some((100, false))), COLOR_BATTERY_GREEN);
     }
 
     #[test]
