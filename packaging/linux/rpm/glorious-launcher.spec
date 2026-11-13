@@ -1,5 +1,5 @@
 Name:           glorious-launcher
-Version:        0.1.8
+Version:        0.1.9
 Release:        1%{?dist}
 Summary:        Web GUI and HID service for Glorious gaming mice
 License:        MIT
@@ -53,5 +53,8 @@ udevadm trigger || true
 /usr/share/doc/glorious-launcher/copyright
 
 %changelog
+* Sat Nov 14 2026 Glorious Web Launcher contributors - 0.1.9-1
+- Align tray battery color tiers with Glorious manual and fix graphical-session launcher startup
+
 * Mon Nov 09 2026 Glorious Web Launcher contributors - 0.1.8-1
 - Add RPM packaging for Linux

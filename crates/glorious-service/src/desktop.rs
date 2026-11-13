@@ -555,12 +555,27 @@ pub fn open_browser(url: &str) {
     }
     #[cfg(target_os = "linux")]
     {
-        let _ = std::process::Command::new("xdg-open")
-            .arg(url)
+        let mut cmd = std::process::Command::new("xdg-open");
+        cmd.arg(url)
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .spawn();
+            .stderr(std::process::Stdio::null());
+        if std::env::var_os("WAYLAND_DISPLAY").is_none() {
+            if let Some(runtime_dir) = std::env::var_os("XDG_RUNTIME_DIR") {
+                if let Some(socket) = ["wayland-1", "wayland-0"]
+                    .into_iter()
+                    .find(|name| std::path::Path::new(&runtime_dir).join(name).exists())
+                {
+                    cmd.env("WAYLAND_DISPLAY", socket);
+                }
+            }
+        }
+        if std::env::var_os("DISPLAY").is_none() && std::path::Path::new("/tmp/.X11-unix/X0").exists() {
+            cmd.env("DISPLAY", ":0");
+        }
+        if let Err(error) = cmd.spawn() {
+            tracing::warn!(%error, %url, "could not open control panel URL");
+        }
     }
     #[cfg(target_os = "macos")]
     {
