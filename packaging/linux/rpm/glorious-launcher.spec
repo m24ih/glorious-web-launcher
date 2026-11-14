@@ -1,5 +1,5 @@
 Name:           glorious-launcher
-Version:        0.1.9
+Version:        0.1.10
 Release:        1%{?dist}
 Summary:        Web GUI and HID service for Glorious gaming mice
 License:        MIT
