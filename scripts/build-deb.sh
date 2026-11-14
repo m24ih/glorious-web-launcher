@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly VERSION="0.1.9"
+readonly VERSION="0.1.10"
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 root_dir="$(cd -- "${script_dir}/.." && pwd)"
 package_dir="${root_dir}/target/packages"
