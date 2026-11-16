@@ -379,19 +379,26 @@ async fn install_linux_update(url: &str, safe_version: &str) -> Result<(), Strin
     fs::rename(&new_bin_path, &current_exe).map_err(|error| error.to_string())?;
     let _ = fs::remove_file(&download_path);
 
-    let restarted = tokio::process::Command::new("systemctl")
-        .args(["--user", "restart", "glorious-launcher.service"])
-        .status()
-        .await
-        .map(|status| status.success())
-        .unwrap_or(false);
-    if !restarted {
-        let mut command = std::process::Command::new(&current_exe);
-        command.args(std::env::args_os().skip(1));
-        command
-            .spawn()
-            .map_err(|error| format!("Failed to restart updated service: {error}"))?;
-    }
+    tokio::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+        let restarted = tokio::process::Command::new("systemctl")
+            .args(["--user", "restart", "glorious-launcher.service"])
+            .status()
+            .await
+            .map(|status| status.success())
+            .unwrap_or(false);
+        if !restarted {
+            let result = std::process::Command::new("sh")
+                .args(["-c", "sleep 1; exec \"$@\"", "sh"])
+                .arg(&current_exe)
+                .args(std::env::args_os().skip(1))
+                .spawn();
+            match result {
+                Ok(_) => std::process::exit(0),
+                Err(error) => tracing::error!(%error, "failed to restart updated service"),
+            }
+        }
+    });
     Ok(())
 }
 

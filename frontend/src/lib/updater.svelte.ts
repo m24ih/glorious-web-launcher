@@ -109,20 +109,43 @@ class UpdaterStore {
     this.status = 'downloading';
     this.errorMessage = '';
     try {
-      const res = await fetch('/api/update/install', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          download_url: this.downloadUrl,
-          version: this.latestVersion,
-        }),
-      });
-      if (!res.ok) {
+      let res: Response | undefined;
+      try {
+        res = await fetch('/api/update/install', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            download_url: this.downloadUrl,
+            version: this.latestVersion,
+          }),
+        });
+      } catch {
+        // The old service may have stopped before its response reached the browser.
+      }
+      if (res && !res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || `Failed with HTTP ${res.status}`);
       }
       this.status = 'installing';
-      return true;
+      let sawDowntime = false;
+      for (let attempt = 0; attempt < 20; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        try {
+          const healthRes = await fetch('/api/health', { cache: 'no-store', signal: AbortSignal.timeout(1000) });
+          if (!healthRes.ok) {
+            sawDowntime = true;
+            continue;
+          }
+          const health = await healthRes.json();
+          if (sawDowntime || health.version?.replace(/^v/i, '') === this.latestVersion.replace(/^v/i, '')) {
+            window.location.reload();
+            return true;
+          }
+        } catch {
+          sawDowntime = true;
+        }
+      }
+      throw new Error('Timed out waiting for the updated service');
     } catch (err: any) {
       this.status = 'error';
       this.errorMessage = err?.message || 'Failed to install update';
